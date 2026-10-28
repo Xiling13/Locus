@@ -1,0 +1,110 @@
+@import "tailwindcss";
+@import "@fontsource-variable/martian-mono/standard.css";
+@import "@fontsource-variable/big-shoulders-display";
+@import "@fontsource-variable/schibsted-grotesk";
+
+@theme {
+  --color-ink: #0b0c0a;
+  --color-ink-2: #161714;
+  --color-ink-3: #23241f;
+  --color-bone: #f2f0e9;
+  --color-ash: #8e8f87;
+  --color-signal: #ff4b1f;
+  --color-mint: #2ee6a6;
+
+  --font-display: "Big Shoulders Display Variable", "Arial Narrow", sans-serif;
+  --font-mono: "Martian Mono Variable", ui-monospace, monospace;
+  --font-sans: "Schibsted Grotesk Variable", -apple-system, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: var(--color-bone);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-signal);
+  color: var(--color-ink);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-stretch: 78%;
+  letter-spacing: 0.02em;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+  line-height: 0.86;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), 12px);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+.rise {
+  animation: rise 0.7s var(--ease-out-expo) both;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes draw {
+  from {
+    clip-path: inset(0 100% 100% 0);
+  }
+}
+.draw {
+  animation: draw 0.6s var(--ease-out-expo) both;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-signal) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
+.hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-signal) 55%, transparent) 0 3px,
+    transparent 3px 8px
+  );
+}
