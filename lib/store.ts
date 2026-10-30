@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { buildCommit, detect, shortId } from "./engine";
-import type { Audit, Commit, DiffItem, Space } from "./types";
+import type { Audit, Commit, DiffItem, LedgerObject, Space } from "./types";
 
 type State = {
   spaces: Space[];
@@ -16,7 +16,9 @@ type State = {
   renameItem: (spaceId: string, objectId: string, label: string) => void;
   addAudit: (spaceId: string, audit: Audit) => void;
   resolveItem: (spaceId: string, auditId: string, itemId: string, r: DiffItem["resolution"]) => void;
-  pushCommit: (spaceId: string, commit: Commit, fromAudit?: string) => void;
+  pushCommit: (spaceId: string, commit: Commit, fromAudit?: string, untracked?: LedgerObject[]) => void;
+  untrackItem: (spaceId: string, objectId: string) => void;
+  trackItem: (spaceId: string, objectId: string) => void;
   markSeeded: () => void;
 };
 
@@ -67,14 +69,52 @@ export const useLocus = create<State>()(
             ),
           })),
         })),
-      pushCommit: (spaceId, commit, fromAudit) =>
+      pushCommit: (spaceId, commit, fromAudit, untracked = []) =>
         setState((s) => ({
           spaces: mapSpace(s.spaces, spaceId, (sp) => ({
             ...sp,
             headId: commit.id,
             commits: [commit, ...sp.commits],
             audits: sp.audits.map((a) => (a.id === fromAudit ? { ...a, committedAs: commit.id } : a)),
+            untracked: [...untracked, ...(sp.untracked ?? [])],
           })),
+        })),
+      untrackItem: (spaceId, objectId) =>
+        setState((s) => ({
+          spaces: mapSpace(s.spaces, spaceId, (sp) => {
+            const obj = headOf(sp).objects.find((o) => o.id === objectId);
+            if (!obj) return sp;
+            const open = openCheck(sp);
+            return {
+              ...sp,
+              commits: sp.commits.map((c) =>
+                c.id === sp.headId ? { ...c, objects: c.objects.filter((o) => o.id !== objectId) } : c,
+              ),
+              audits: sp.audits.map((a) =>
+                a !== open
+                  ? a
+                  : {
+                      ...a,
+                      items: a.items.filter((i) => i.objectId !== objectId),
+                      detections: a.detections.filter((d) => d.signature !== obj.signature),
+                      unchanged: a.items.some((i) => i.objectId === objectId) ? a.unchanged : a.unchanged - 1,
+                    },
+              ),
+              untracked: [obj, ...(sp.untracked ?? [])],
+            };
+          }),
+        })),
+      trackItem: (spaceId, objectId) =>
+        setState((s) => ({
+          spaces: mapSpace(s.spaces, spaceId, (sp) => {
+            const obj = sp.untracked?.find((o) => o.id === objectId);
+            if (!obj) return sp;
+            return {
+              ...sp,
+              commits: sp.commits.map((c) => (c.id === sp.headId ? { ...c, objects: [...c.objects, obj] } : c)),
+              untracked: sp.untracked!.filter((o) => o.id !== objectId),
+            };
+          }),
         })),
       markSeeded: () => setState({ seeded: true }),
     }),

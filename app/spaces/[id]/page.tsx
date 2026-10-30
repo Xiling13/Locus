@@ -8,12 +8,14 @@ import { ScenePhoto, Spot } from "@/components/Photo";
 import {
   Button,
   buttonClass,
+  Changes,
   InlineEdit,
   Missing,
   Pill,
   Round,
   Sheet,
   Splash,
+  Toggle,
   type InlineEditHandle,
 } from "@/components/ui";
 import { ago, plural, stamp } from "@/lib/format";
@@ -118,7 +120,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
           <h2 className="text-[22px] font-bold tracking-[-0.03em]">Items</h2>
           <span className="text-[14px] text-mute">{head.objects.length}</span>
         </div>
-        <ul className="mt-4 grid grid-cols-3 gap-x-3 gap-y-4">
+        <ul className="mt-4 grid grid-cols-3 gap-x-4 gap-y-5">
           {head.objects.map((o, i) => (
             <li key={o.id} className="rise" style={{ animationDelay: `${i * 30}ms` }}>
               <button type="button" onClick={() => setActive(o.id)} className="block w-full text-left transition active:scale-95">
@@ -134,7 +136,12 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
             </li>
           ))}
         </ul>
+        {head.objects.length === 0 && (
+          <p className="mt-3 px-1 text-[14px] text-mute">Nothing tracked here. Switch an item back on below.</p>
+        )}
       </section>
+
+      <Untracked space={space} />
 
       <History space={space} head={head} />
 
@@ -236,6 +243,7 @@ function ItemSheet({
   onClose: () => void;
 }) {
   const renameItem = useLocus((s) => s.renameItem);
+  const untrackItem = useLocus((s) => s.untrackItem);
   return (
     <Sheet label={item.label} onClose={onClose}>
       {(close) => (
@@ -293,20 +301,45 @@ function ItemSheet({
               </Button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              setTimeout(() => untrackItem(space.id, item.id), 260);
+            }}
+            className={buttonClass("clear", "mt-1 h-12 text-[15px]")}
+          >
+            Stop tracking
+          </button>
         </div>
       )}
     </Sheet>
   );
 }
 
-function summary(a: Audit) {
-  const n = (k: string) => a.items.filter((i) => i.kind === k).length;
-  const parts = [
-    n("removed") && { tone: "bg-miss", text: `${n("removed")} missing` },
-    n("added") && { tone: "bg-new", text: `${n("added")} new` },
-    n("moved") && { tone: "bg-move", text: `${n("moved")} moved` },
-  ].filter(Boolean) as { tone: string; text: string }[];
-  return parts;
+function Untracked({ space }: { space: Space }) {
+  const trackItem = useLocus((s) => s.trackItem);
+  const items = space.untracked ?? [];
+  if (!items.length) return null;
+  return (
+    <section className="mt-10 px-5">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-[22px] font-bold tracking-[-0.03em]">Not tracked</h2>
+        <span className="text-[14px] text-mute">{items.length}</span>
+      </div>
+      <p className="mt-1 text-[14px] text-soft">Checks ignore these. Switch one on to keep an eye on it.</p>
+      <ul className="mt-4 overflow-hidden rounded-[28px] bg-card">
+        {items.map((o) => (
+          <li key={o.id} className="flex items-center gap-3.5 border-b border-paper p-2.5 pr-4 last:border-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={o.crop} alt="" className="size-12 shrink-0 rounded-[14px] object-cover opacity-50 grayscale" />
+            <span className="min-w-0 flex-1 truncate text-[16px] font-semibold text-soft">{o.label}</span>
+            <Toggle on={false} label={`Keep track of ${o.label}`} onChange={() => trackItem(space.id, o.id)} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function History({ space, head }: { space: Space; head: Commit }) {
@@ -316,7 +349,6 @@ function History({ space, head }: { space: Space; head: Commit }) {
       <h2 className="text-[22px] font-bold tracking-[-0.03em]">History</h2>
       <ol className="mt-4 overflow-hidden rounded-[28px] bg-card">
         {space.audits.map((a) => {
-          const parts = summary(a);
           return (
             <li key={a.id} className="border-b border-paper">
               <Link
@@ -330,17 +362,8 @@ function History({ space, head }: { space: Space; head: Commit }) {
                     Checked {ago(a.createdAt)}
                     {a.committedAs && <Check width={15} height={15} strokeWidth={2.6} className="text-soft" />}
                   </span>
-                  <span className="mt-1 flex flex-wrap gap-x-3 text-[13px] text-soft">
-                    {parts.length ? (
-                      parts.map((p) => (
-                        <span key={p.text} className="flex items-center gap-1.5">
-                          <span className={`size-1.5 rounded-full ${p.tone}`} />
-                          {p.text}
-                        </span>
-                      ))
-                    ) : (
-                      <span>Everything in place</span>
-                    )}
+                  <span className="mt-1 block">
+                    <Changes audit={a} />
                   </span>
                 </span>
                 <Back width={18} height={18} className="rotate-180 text-mute" />

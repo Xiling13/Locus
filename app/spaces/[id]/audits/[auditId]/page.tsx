@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState, type ReactNode } from "react";
 import { AuditViewport, type ViewportHandle } from "@/components/AuditViewport";
 import { Back, Check, Chevron } from "@/components/icons";
-import { Button, buttonClass, Missing, Round, Splash } from "@/components/ui";
+import { Button, buttonClass, Missing, Round, Splash, Toggle } from "@/components/ui";
 import { recommit } from "@/lib/engine";
 import { ago, plural, stamp } from "@/lib/format";
 import { direction, region } from "@/lib/geometry";
@@ -50,6 +50,7 @@ function Report({
   const [filter, setFilter] = useState<DiffKind | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [skip, setSkip] = useState<Set<string>>(new Set());
 
   const order = { removed: 0, added: 1, moved: 2 };
   const items = [...audit.items].sort((a, b) => order[a.kind] - order[b.kind]);
@@ -79,8 +80,8 @@ function Report({
 
   async function save() {
     setSaving(true);
-    const c = await recommit(base, audit);
-    pushCommit(space.id, c, audit.id);
+    const { commit, untracked } = await recommit(base, audit, skip);
+    pushCommit(space.id, commit, audit.id, untracked);
     router.push(`/spaces/${space.id}`);
   }
 
@@ -148,6 +149,19 @@ function Report({
               open={selected === i.id}
               onToggle={() => select(i.id, "list")}
               onResolve={(r) => resolveItem(space.id, audit.id, i.id, r)}
+              track={
+                i.kind === "added" && !audit.committedAs
+                  ? {
+                      on: !skip.has(i.detectionId!),
+                      toggle: () =>
+                        setSkip((s) => {
+                          const n = new Set(s);
+                          if (!n.delete(i.detectionId!)) n.add(i.detectionId!);
+                          return n;
+                        }),
+                    }
+                  : undefined
+              }
             />
           ))}
         </ul>
@@ -223,15 +237,17 @@ function Row({
   open,
   onToggle,
   onResolve,
+  track,
 }: {
   item: DiffItem;
   base: Commit;
   open: boolean;
   onToggle: () => void;
   onResolve: (r: DiffItem["resolution"]) => void;
+  track?: { on: boolean; toggle: () => void };
 }) {
   const ledger = item.objectId ? base.objects.find((o) => o.id === item.objectId) : undefined;
-  const status = statusOf(item);
+  const status = track && !track.on ? { text: "Won’t be tracked", cls: "text-soft" } : statusOf(item);
   const dot = item.kind === "removed" ? "bg-miss" : item.kind === "added" ? "bg-new" : "bg-move";
 
   return (
@@ -267,8 +283,15 @@ function Row({
             {item.kind === "moved" && <MovedDetail item={item} hint={ledger?.hint} />}
             {item.kind === "added" && (
               <p className="rounded-[18px] bg-paper p-4 text-[15px] leading-relaxed text-soft">
-                Wasn’t here last time — now at the {region(item.to!)}. Save this check and it becomes one of your items.
+                Wasn’t here last time — now at the {region(item.to!)}.
+                {track && (track.on ? " Save this check and it becomes one of your items." : " Checks will ignore it.")}
               </p>
+            )}
+            {track && (
+              <div className="mt-3 flex items-center justify-between gap-3 px-1">
+                <span className="text-[15px] font-semibold">Keep track of it</span>
+                <Toggle on={track.on} label={`Keep track of ${item.label}`} onChange={track.toggle} />
+              </div>
             )}
           </div>
         </div>

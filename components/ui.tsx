@@ -10,6 +10,7 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
+import type { Audit } from "@/lib/types";
 import { Pencil } from "./icons";
 
 type Tone = "ink" | "card" | "sunk" | "miss" | "clear" | "smoke";
@@ -91,6 +92,49 @@ export function Pill({
     >
       <span className={`size-1.5 rounded-full ${dots[tone]}`} />
       {children}
+    </span>
+  );
+}
+
+export function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-ink" : "bg-line"}`}
+    >
+      <span
+        className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-[left] duration-250 ease-[var(--ease-spring)] ${
+          on ? "left-[22px]" : "left-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
+/** Coloured dots summarising a check: "2 missing · 1 new · 1 moved". */
+export function Changes({ audit }: { audit: Audit }) {
+  const n = (k: string) => audit.items.filter((i) => i.kind === k).length;
+  const parts = [
+    n("removed") && { tone: "bg-miss", text: `${n("removed")} missing` },
+    n("added") && { tone: "bg-new", text: `${n("added")} new` },
+    n("moved") && { tone: "bg-move", text: `${n("moved")} moved` },
+  ].filter(Boolean) as { tone: string; text: string }[];
+  return (
+    <span className="flex flex-wrap gap-x-3 text-[13px] text-soft">
+      {parts.length ? (
+        parts.map((p) => (
+          <span key={p.text} className="flex items-center gap-1.5">
+            <span className={`size-1.5 rounded-full ${p.tone}`} />
+            {p.text}
+          </span>
+        ))
+      ) : (
+        <span>Everything in place</span>
+      )}
     </span>
   );
 }

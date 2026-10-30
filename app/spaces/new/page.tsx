@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Back, Camera, Photos } from "@/components/icons";
 import { ScenePhoto } from "@/components/Photo";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
-import { Button, InlineEdit, Round } from "@/components/ui";
+import { Button, InlineEdit, Round, Toggle } from "@/components/ui";
 import { buildCommit, detect, shortId } from "@/lib/engine";
 import { plural } from "@/lib/format";
 import { FRAME, fromFile, type LoadedImage } from "@/lib/image";
@@ -52,12 +52,8 @@ export default function NewSpace() {
 
   function save() {
     if (stage.k !== "review") return;
-    const c = {
-      ...stage.commit,
-      objects: stage.commit.objects
-        .filter((o) => !excluded.has(o.id))
-        .map((o) => ({ ...o, label: labels[o.id] ?? o.label })),
-    };
+    const objects = stage.commit.objects.map((o) => ({ ...o, label: labels[o.id] ?? o.label }));
+    const c = { ...stage.commit, objects: objects.filter((o) => !excluded.has(o.id)) };
     const id = shortId();
     addSpace({
       id,
@@ -66,6 +62,7 @@ export default function NewSpace() {
       headId: c.id,
       commits: [c],
       audits: [],
+      untracked: objects.filter((o) => excluded.has(o.id)),
     });
     router.replace(`/spaces/${id}`);
   }
@@ -241,24 +238,5 @@ export default function NewSpace() {
       />
       <input ref={libraryRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
     </main>
-  );
-}
-
-function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onChange}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-ink" : "bg-line"}`}
-    >
-      <span
-        className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-[left] duration-250 ease-[var(--ease-spring)] ${
-          on ? "left-[22px]" : "left-0.5"
-        }`}
-      />
-    </button>
   );
 }

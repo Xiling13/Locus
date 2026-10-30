@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Chevron, Plus, Search } from "@/components/icons";
+import { Chevron, Clock, Plus, Search } from "@/components/icons";
 import { Frame } from "@/components/Photo";
-import { Logo, Pill, Splash, buttonClass } from "@/components/ui";
+import { Logo, Pill, Round, Splash, buttonClass } from "@/components/ui";
 import { ago, plural } from "@/lib/format";
 import { ensureDemo, headOf, missingOf, openCheck, useHydrated, useLocus } from "@/lib/store";
 import type { Space } from "@/lib/types";
@@ -26,11 +26,14 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh flex-col bg-paper">
-      <header className="pt-safe flex shrink-0 items-center px-5">
+      <header className="pt-safe flex shrink-0 items-center justify-between px-5">
         <Logo />
+        <Round href="/activity" variant="card" aria-label="Activity" className="-mr-1">
+          <Clock width={21} height={21} />
+        </Round>
       </header>
 
-      <h1 className="display rise mt-9 shrink-0 px-5 text-[52px]">
+      <h1 className="display rise mt-6 shrink-0 px-5 text-[52px]">
         {missing.length > 0 ? (
           <>
             {plural(missing.length, "thing")}

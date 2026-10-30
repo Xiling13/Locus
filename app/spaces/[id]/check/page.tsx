@@ -39,7 +39,7 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
     ];
     setStage({ k: "scan", image, steps });
     const started = Date.now();
-    const audit = await runAudit(head, image);
+    const audit = await runAudit(head, image, space!.untracked);
     const occluded = audit.items.filter((i) => i.confidence === "occluded").length;
     const changes = audit.items.length;
     const values = [

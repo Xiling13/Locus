@@ -104,6 +104,13 @@ export const Fit = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const Clock = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 8v4.2l2.8 1.8" />
+  </svg>
+);
+
 export const Check = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M5 12.5l4.5 4.5L19 7.5" />

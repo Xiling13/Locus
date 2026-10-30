@@ -71,5 +71,7 @@ export type Space = {
   headId: string;
   commits: Commit[];
   audits: Audit[];
+  /** Items the user switched off. Checks ignore anything with a matching signature. */
+  untracked?: LedgerObject[];
   demo?: boolean;
 };

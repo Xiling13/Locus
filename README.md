@@ -21,8 +21,9 @@ All photos are center-cropped to 3:4 (`FRAME` in `lib/image.ts`) so the viewfind
 | --- | --- |
 | Home (swipeable space cards, items that need a look) | `/` |
 | Search (every item across spaces) | `/search` |
+| Activity (every check across spaces, filter by space) | `/activity` |
 | New space (take photo → rename / switch off items → save) | `/spaces/new` |
-| Space (reference photo, items, history; `?item=` opens an item) | `/spaces/[id]` |
+| Space (reference photo, items, untracked items, history; `?item=` opens an item) | `/spaces/[id]` |
 | Check (camera + outline guide) | `/spaces/[id]/check` |
 | Check report (pan-zoom photo, missing / new / moved, save as new reference) | `/spaces/[id]/audits/[auditId]` |
 

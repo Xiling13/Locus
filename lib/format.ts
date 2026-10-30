@@ -16,4 +16,20 @@ export function ago(iso: string) {
   return stamp(iso);
 }
 
+export function day(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - new Date(d).setHours(0, 0, 0, 0)) / 86400000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+export function time(iso: string) {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

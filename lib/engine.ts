@@ -50,8 +50,9 @@ export async function buildCommit(
   };
 }
 
-export async function runAudit(base: Commit, image: LoadedImage): Promise<Audit> {
-  const detections = await detect(image, base.objects);
+export async function runAudit(base: Commit, image: LoadedImage, untracked: LedgerObject[] = []): Promise<Audit> {
+  const ignored = new Set(untracked.map((o) => o.signature));
+  const detections = (await detect(image, base.objects)).filter((d) => !ignored.has(d.signature));
   const img = await loadImage(image.src);
   const bySig = new Map(detections.map((d) => [d.signature, d]));
   const matched = new Set<string>();
@@ -124,10 +125,23 @@ export async function runAudit(base: Commit, image: LoadedImage): Promise<Audit>
   };
 }
 
-export function recommit(base: Commit, audit: Audit) {
-  return buildCommit(
+/**
+ * New reference from a check. Items marked found are carried over from the old reference
+ * (they were hidden, not gone); new detections listed in `skip` go to the untracked list.
+ */
+export async function recommit(base: Commit, audit: Audit, skip: Set<string> = new Set()) {
+  const found = new Set(
+    audit.items.filter((i) => i.kind === "removed" && i.resolution === "found").map((i) => i.objectId),
+  );
+  const commit = await buildCommit(
     { src: audit.image, width: audit.width, height: audit.height },
     audit.detections,
     { parentId: base.id, message: `Recommit after audit ${audit.id}`, previous: base.objects },
   );
+  const untracked = commit.objects.filter((o) => skip.has(o.id));
+  commit.objects = [
+    ...commit.objects.filter((o) => !skip.has(o.id)),
+    ...base.objects.filter((o) => found.has(o.id)),
+  ];
+  return { commit, untracked };
 }
