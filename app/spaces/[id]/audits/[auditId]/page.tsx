@@ -9,13 +9,13 @@ import { recommit } from "@/lib/engine";
 import { ago, plural, stamp } from "@/lib/format";
 import { direction, region } from "@/lib/geometry";
 import { FRAME } from "@/lib/image";
-import { deletionOf, headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
+import { deletionOf, headOf, KIND_ORDER, primaryDiff, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Audit, Commit, DiffItem, DiffKind, Space } from "@/lib/types";
 
 const KINDS: { k: DiffKind; label: string; dot: string; on: string }[] = [
   { k: "removed", label: "Missing", dot: "bg-miss", on: "bg-miss-tint text-miss-deep" },
-  { k: "added", label: "New", dot: "bg-new", on: "bg-new-tint text-new-deep" },
   { k: "moved", label: "Moved", dot: "bg-move", on: "bg-move-tint text-move-deep" },
+  { k: "added", label: "New", dot: "bg-new", on: "bg-new-tint text-new-deep" },
 ];
 
 export default function AuditPage({ params, searchParams }: PageProps<"/spaces/[id]/audits/[auditId]">) {
@@ -67,8 +67,15 @@ function Report({
   const [confirm, setConfirm] = useState(false);
   const deleteCheck = useLocus((s) => s.deleteCheck);
 
-  const order = { removed: 0, added: 1, moved: 2 };
-  const items = [...audit.items].sort((a, b) => order[a.kind] - order[b.kind]);
+  const items = [...audit.items].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]);
+  const status = primaryDiff(items);
+  const headline = !status
+    ? "All in place"
+    : status.kind === "removed"
+      ? `${plural(status.count, "thing")} missing`
+      : status.kind === "moved"
+        ? `${status.count} moved`
+        : `${status.count} new`;
   const visible = filter ? items.filter((i) => i.kind === filter) : items;
   const pending = items.filter(
     (i) => i.kind === "removed" && i.confidence === "occluded" && !i.resolution,
@@ -137,13 +144,7 @@ function Report({
           <p className="text-[14px] font-medium text-soft">
             {space.name} · checked {ago(audit.createdAt)}
           </p>
-          <h1 className="display mt-1.5 text-[38px]">
-            {items.length === 0
-              ? "Nothing changed"
-              : items.some((i) => i.kind === "removed" && i.resolution !== "found")
-                ? `${plural(items.filter((i) => i.kind === "removed" && i.resolution !== "found").length, "thing")} missing`
-                : "Nothing missing"}
-          </h1>
+          <h1 className="display mt-1.5 text-[38px]">{headline}</h1>
 
           {items.length > 0 && (
             <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
@@ -198,7 +199,7 @@ function Report({
                 <Check width={18} height={18} strokeWidth={2.6} />
               </span>
               <span className="text-[15px] font-medium">
-                {audit.committedAs === space.headId ? "This photo is your reference" : "Saved as a reference earlier"}
+                {audit.committedAs === space.headId ? "This is your current photo" : "Saved as current earlier"}
               </span>
             </div>
           ) : (
@@ -209,7 +210,7 @@ function Report({
                 Save this photo and your next check will compare against it.
               </p>
               <Button className="mt-5" disabled={saving} onClick={save}>
-                {saving ? "Saving…" : "Save as new reference"}
+                {saving ? "Saving…" : "Save as new current"}
               </Button>
             </div>
           )}
@@ -250,9 +251,9 @@ function DeleteCheck({
       <p className="display text-[30px]">Delete this check?</p>
       <p className="mt-2 text-[15px] leading-relaxed text-soft">
         {previous
-          ? `Its photo is your reference right now. Deleting it brings back the reference from ${stamp(previous.createdAt)}.`
+          ? `Its photo is your current photo right now. Deleting it brings back the current from ${stamp(previous.createdAt)}.`
           : audit.committedAs
-            ? "It comes out of your history. Your reference photo stays the same."
+            ? "It comes out of your history. Your current photo stays the same."
             : "It comes out of your history. Nothing else changes."}
         {later > 0 && ` The ${plural(later, "newer check")} compared against it will go too.`}
       </p>
@@ -419,7 +420,7 @@ function MovedDetail({ item, hint }: { item: DiffItem; hint?: string }) {
     <Facts
       rows={[
         ["Was", cap(region(item.from!))],
-        ["Now", cap(region(item.to!))],
+        ["Current", cap(region(item.to!))],
         ...(hint ? ([["Usually", hint]] as [string, string][]) : []),
       ]}
     />

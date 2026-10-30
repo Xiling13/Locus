@@ -27,7 +27,7 @@ import {
   type InlineEditHandle,
 } from "@/components/ui";
 import { ago, plural, stamp } from "@/lib/format";
-import { headOf, missingOf, openCheck, useHydrated, useLocus, useSpace } from "@/lib/store";
+import { headOf, missingOf, openCheck, primaryDiff, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Audit, Commit, LedgerObject, Space } from "@/lib/types";
 
 export default function SpacePage({ params, searchParams }: PageProps<"/spaces/[id]">) {
@@ -63,8 +63,24 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
   const missing = missingOf(space);
   const missingIds = new Set(missing.map((m) => m.objectId));
   const open = openCheck(space);
+  const openStatus = open ? primaryDiff(open.items) : null;
   const focus = head.objects.find((o) => o.id === active);
   const intro = useIntro();
+  const openTone =
+    openStatus?.kind === "removed"
+      ? { bg: "bg-miss-tint", text: "text-miss-deep", btn: "bg-miss text-ink" }
+      : openStatus?.kind === "moved"
+        ? { bg: "bg-move-tint", text: "text-move-deep", btn: "bg-move text-ink" }
+        : openStatus?.kind === "added"
+          ? { bg: "bg-new-tint", text: "text-new-deep", btn: "bg-new text-paper" }
+          : { bg: "bg-card", text: "", btn: "bg-paper" };
+  const openLabel = !openStatus
+    ? "All in place"
+    : openStatus.kind === "removed"
+      ? `${plural(openStatus.count, "thing")} missing`
+      : openStatus.kind === "moved"
+        ? `${openStatus.count} moved`
+        : `${openStatus.count} new`;
 
   return (
     <main className="min-h-dvh bg-paper pb-36">
@@ -114,23 +130,17 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
           <Link
             href={`/spaces/${space.id}/audits/${open.id}`}
             transitionTypes={nav("forward")}
-            className={`mt-6 flex items-center gap-4 rounded-[28px] p-4 pl-5 transition-transform duration-300 active:scale-[0.98] active:duration-100 ${
-              missing.length ? "bg-miss-tint" : "bg-card"
-            } ${intro ? "rise" : ""}`}
+            className={`mt-6 flex items-center gap-4 rounded-[28px] p-4 pl-5 transition-transform duration-300 active:scale-[0.98] active:duration-100 ${openTone.bg} ${intro ? "rise" : ""}`}
           >
             <span className="min-w-0 flex-1">
-              <span className={`block text-[18px] font-bold ${missing.length ? "text-miss-deep" : ""}`}>
-                {missing.length ? `${plural(missing.length, "thing")} missing` : "Nothing missing"}
+              <span className={`block text-[18px] font-bold ${openTone.text}`}>
+                {openLabel}
               </span>
               <span className="mt-0.5 block truncate text-[14px] text-soft">
                 {missing.length ? missing.map((m) => m.label).join(", ") : `Checked ${ago(open.createdAt)}`}
               </span>
             </span>
-            <span
-              className={`grid size-11 shrink-0 place-items-center rounded-full ${
-                missing.length ? "bg-miss text-ink" : "bg-paper"
-              }`}
-            >
+            <span className={`grid size-11 shrink-0 place-items-center rounded-full ${openTone.btn}`}>
               <Arrow width={18} height={18} />
             </span>
           </Link>
@@ -138,10 +148,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
       </section>
 
       <section className="mt-10 px-5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[22px] font-bold tracking-[-0.03em]">Items</h2>
-          <span className="text-[14px] text-mute">{head.objects.length}</span>
-        </div>
+        <h2 className="text-[22px] font-bold tracking-[-0.03em]">Items</h2>
         <ul className="mt-4 grid grid-cols-3 gap-x-4 gap-y-5">
           {head.objects.map((o, i) => (
             <li key={o.id} className={intro ? "rise" : ""} style={{ animationDelay: `${i * 30}ms` }}>
@@ -351,11 +358,10 @@ function Untracked({ space }: { space: Space }) {
   if (!items.length) return null;
   return (
     <section className="mt-10 px-5">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-[22px] font-bold tracking-[-0.03em]">Not tracked</h2>
-        <span className="text-[14px] text-mute">{items.length}</span>
-      </div>
-      <p className="mt-1 text-[14px] text-soft">Checks ignore these. Switch one on to keep an eye on it.</p>
+      <h2 className="text-[22px] font-bold tracking-[-0.03em]">Not tracked</h2>
+      <p className="mt-1 text-[14px] text-soft">
+        {items.length} {items.length === 1 ? "item" : "items"}
+      </p>
       <ul className="mt-4 overflow-hidden rounded-[28px] bg-card">
         {items.map((o) => (
           <li key={o.id} className="flex items-center gap-3.5 border-b border-paper p-2.5 pr-4 last:border-0">
@@ -401,14 +407,14 @@ function History({ space, head }: { space: Space; head: Commit }) {
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2 text-[16px] font-semibold">
               Space created
-              {head.id === first.id && <Badge>Reference</Badge>}
+              {head.id === first.id && <Badge>Current</Badge>}
             </span>
             <span className="mt-1 block text-[13px] text-soft">{stamp(first.createdAt)} · first photo</span>
           </span>
         </li>
       </ol>
       {space.audits.length === 0 && (
-        <p className="mt-3 px-1 text-[14px] text-mute">No checks yet.</p>
+        <p className="mt-3 px-1 text-[14px] text-mute">Not checked yet.</p>
       )}
     </section>
   );

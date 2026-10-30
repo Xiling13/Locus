@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#eeece7",
+  colorScheme: "light",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -18,8 +19,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="antialiased">
-      <body className="min-h-dvh">
-        <div className="mx-auto min-h-dvh max-w-[480px] relative border-x border-white bg-paper">{children}</div>
+      <body className="min-h-dvh bg-paper">
+        <div className="relative mx-auto min-h-dvh max-w-[480px] bg-paper min-[481px]:border-x min-[481px]:border-white">
+          {children}
+        </div>
       </body>
     </html>
   );

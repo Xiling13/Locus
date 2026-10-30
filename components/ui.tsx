@@ -222,19 +222,19 @@ export function Badge({ children }: { children: ReactNode }) {
   );
 }
 
-/** "Reference" if this check is the current reference photo, "Saved" if it was one earlier. */
+/** "Current" if this check is the current photo, "Saved" if it was one earlier. */
 export function SavedBadge({ space, audit }: { space: Space; audit: Audit }) {
   if (!audit.committedAs) return null;
-  return <Badge>{audit.committedAs === space.headId ? "Reference" : "Saved"}</Badge>;
+  return <Badge>{audit.committedAs === space.headId ? "Current" : "Saved"}</Badge>;
 }
 
-/** Coloured dots summarising a check: "2 missing · 1 new · 1 moved". */
+/** Coloured dots summarising a check: "2 missing · 1 moved · 1 new". */
 export function Changes({ audit }: { audit: Audit }) {
   const n = (k: string) => audit.items.filter((i) => i.kind === k).length;
   const parts = [
     n("removed") && { tone: "bg-miss", text: `${n("removed")} missing` },
-    n("added") && { tone: "bg-new", text: `${n("added")} new` },
     n("moved") && { tone: "bg-move", text: `${n("moved")} moved` },
+    n("added") && { tone: "bg-new", text: `${n("added")} new` },
   ].filter(Boolean) as { tone: string; text: string }[];
   return (
     <span className="flex flex-wrap gap-x-3 text-[13px] text-soft">
@@ -246,7 +246,7 @@ export function Changes({ audit }: { audit: Audit }) {
           </span>
         ))
       ) : (
-        <span>Everything in place</span>
+        <span>All in place</span>
       )}
     </span>
   );

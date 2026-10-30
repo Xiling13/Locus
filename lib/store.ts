@@ -4,8 +4,8 @@ import { del, get, set } from "idb-keyval";
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { buildCommit, detect, shortId } from "./engine";
-import type { Audit, Commit, DiffItem, LedgerObject, Space } from "./types";
+import { buildCommit, detect, runAudit, shortId } from "./engine";
+import type { Audit, Commit, DiffItem, DiffKind, LedgerObject, Space } from "./types";
 
 type State = {
   spaces: Space[];
@@ -142,8 +142,8 @@ export const useLocus = create<State>()(
     {
       name: "locus",
       storage: idb,
-      // Bump to wipe any leftover Chinese demo rows from earlier sessions.
-      version: 3,
+      // Bump to wipe stale demo rows so home status reflects the seeded check.
+      version: 4,
       migrate: () => ({ spaces: [], seeded: false }) as unknown as State,
     },
   ),
@@ -172,6 +172,30 @@ export const openCheck = (space: Space) =>
 export const missingOf = (space: Space) =>
   openCheck(space)?.items.filter((i) => i.kind === "removed" && i.resolution !== "found") ?? [];
 
+/** Display order / priority: Missing > Moved > New. */
+export const KIND_ORDER: Record<DiffKind, number> = { removed: 0, moved: 1, added: 2 };
+
+/** Highest-priority change in a check (Missing > Moved > New), or null if clear. */
+export function primaryDiff(items: DiffItem[]) {
+  const counts: Record<DiffKind, number> = { removed: 0, moved: 0, added: 0 };
+  for (const i of items) {
+    if (i.kind === "removed" && i.resolution === "found") continue;
+    counts[i.kind]++;
+  }
+  if (counts.removed) return { kind: "removed" as const, count: counts.removed };
+  if (counts.moved) return { kind: "moved" as const, count: counts.moved };
+  if (counts.added) return { kind: "added" as const, count: counts.added };
+  return null;
+}
+
+/** Space card status from the latest check (Missing > Moved > New). */
+export function statusOf(space: Space) {
+  const last = space.audits[0];
+  if (!last) return { state: "unchecked" } as const;
+  const primary = primaryDiff(last.items);
+  if (!primary) return { state: "clear" } as const;
+  return { state: primary.kind, count: primary.count } as const;
+}
 /**
  * What deleting a check takes with it. A check that became the current reference photo
  * is rolled back: its photo goes, the previous one is the reference again, and any later
@@ -198,13 +222,16 @@ export function ensureDemo() {
     const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
     commit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString();
     commit.objects.forEach((o) => (o.seenAt = commit.createdAt));
+    const current = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
+    const audit = await runAudit(commit, current);
+    audit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString();
     useLocus.getState().addSpace({
       id: shortId(),
       name: "Workbench",
       createdAt: commit.createdAt,
       headId: commit.id,
       commits: [commit],
-      audits: [],
+      audits: [audit],
       demo: true,
     });
     useLocus.getState().markSeeded();

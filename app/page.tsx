@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Chevron, Clock, Plus, Search } from "@/components/icons";
 import { Frame } from "@/components/Photo";
-import { Logo, nav, Pill, Round, Screen, Shared, Splash, Thumb, buttonClass, useIntro } from "@/components/ui";
+import { Logo, nav, Pill, Round, Screen, Shared, Splash, buttonClass, useIntro } from "@/components/ui";
 import { ago, plural } from "@/lib/format";
-import { ensureDemo, headOf, missingOf, openCheck, useHydrated, useLocus } from "@/lib/store";
+import { ensureDemo, headOf, missingOf, statusOf, useHydrated, useLocus } from "@/lib/store";
 import type { Space } from "@/lib/types";
 
 export default function Home() {
@@ -21,7 +21,7 @@ export default function Home() {
 
   if (!hydrated || !seeded) return <Splash />;
 
-  const missing = spaces.flatMap((s) => missingOf(s).map((item) => ({ space: s, item })));
+  const missing = spaces.reduce((n, s) => n + missingOf(s).length, 0);
   const checked = spaces.some((s) => s.audits.length);
   const items = spaces.reduce((n, s) => n + headOf(s).objects.length, 0);
 
@@ -35,10 +35,10 @@ export default function Home() {
         </Round>
       </header>
 
-      <h1 className={`display mt-6 shrink-0 px-5 text-[52px] ${intro ? "rise" : ""}`}>
-        {missing.length > 0 ? (
+      <h1 className={`home-display display mt-6 shrink-0 px-5 text-[52px] ${intro ? "rise" : ""}`}>
+        {missing > 0 ? (
           <>
-            {plural(missing.length, "thing")}
+            {plural(missing, "thing")}
             <br />
             <span className="text-mute">need a look</span>
           </>
@@ -59,33 +59,9 @@ export default function Home() {
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <Deck spaces={spaces} intro={intro} />
-
-        {missing.length > 0 && (
-          <section className={`mt-10 shrink-0 px-5 ${intro ? "rise" : ""}`} style={{ animationDelay: "200ms" }}>
-            <h2 className="text-[22px] font-bold tracking-[-0.03em]">Needs a look</h2>
-            <ul className="mt-4 overflow-hidden rounded-[28px] bg-card">
-              {missing.map(({ space, item }) => (
-                <li key={`${space.id}-${item.id}`} className="border-b border-paper last:border-0">
-                  <Link
-                    href={`/spaces/${space.id}/audits/${openCheck(space)!.id}?item=${item.id}`}
-                    transitionTypes={nav("forward")}
-                    className="flex items-center gap-3.5 p-2.5 pr-4 transition-colors active:bg-paper"
-                  >
-                    <Thumb src={item.crop} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[16px] font-semibold">{item.label}</span>
-                      <span className="block truncate text-[13px] text-soft">{space.name}</span>
-                    </span>
-                    <Pill tone="miss">{item.confidence === "occluded" ? "Maybe hidden" : "Missing"}</Pill>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </div>
 
-      <nav className="pb-safe flex shrink-0 gap-2 px-5 pt-6">
+      <nav className="home-actions pb-safe flex shrink-0 gap-2 px-5 pt-6">
         <Link href="/search" transitionTypes={nav("forward")} className={buttonClass("card", "flex-1")}>
           <Search width={20} height={20} />
           Search
@@ -241,10 +217,23 @@ function DeckCard({ index, intro, children }: { index: number; intro: boolean; c
   );
 }
 
+const statusTone = { removed: "miss", moved: "move", added: "new" } as const;
+
 function SpaceCard({ space }: { space: Space }) {
   const head = headOf(space);
   const last = space.audits[0];
   const missing = missingOf(space);
+  const status = statusOf(space);
+  const label =
+    status.state === "unchecked"
+      ? "Not checked yet"
+      : status.state === "clear"
+        ? "All in place"
+        : status.state === "removed"
+          ? `${status.count} missing`
+          : status.state === "moved"
+            ? `${status.count} moved`
+            : `${status.count} new`;
 
   return (
     <Link
@@ -263,12 +252,12 @@ function SpaceCard({ space }: { space: Space }) {
           />
         </Shared>
         <div className="absolute left-3 top-3">
-          {missing.length > 0 ? (
-            <Pill tone="miss" className="shadow-sm">
-              {missing.length} missing
-            </Pill>
+          {status.state === "unchecked" || status.state === "clear" ? (
+            <Pill tone="glass">{label}</Pill>
           ) : (
-            <Pill tone="glass">{last ? "All in place" : "Not checked yet"}</Pill>
+            <Pill tone={statusTone[status.state]} className="shadow-sm">
+              {label}
+            </Pill>
           )}
         </div>
       </div>

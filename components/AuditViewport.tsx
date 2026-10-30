@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import {
   TransformComponent,
   TransformWrapper,
@@ -51,12 +51,32 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
     const ro = new ResizeObserver(([e]) => {
       const W = e.contentRect.width;
       const H = e.contentRect.height;
-      const w = Math.max(W, H * aspect);
-      setSize({ w, h: w / aspect });
+      if (W < 1 || H < 1) return;
+      // Cover the viewport, then add a hair of overscan so rubber-band / subpixel
+      // pan never flashes the sunk background ("露底").
+      let w = Math.max(W, H * aspect);
+      let h = w / aspect;
+      if (h < H) {
+        h = H;
+        w = H * aspect;
+      }
+      const pad = 2;
+      w += pad;
+      h += pad;
+      setSize((prev) => (prev && Math.abs(prev.w - w) < 0.5 && Math.abs(prev.h - h) < 0.5 ? prev : { w, h }));
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [aspect]);
+
+  useLayoutEffect(() => {
+    if (!size) return;
+    // Re-center after size changes (mobile browser chrome / orientation) so a
+    // stale pan offset can't leave a strip of background on one side.
+    const z = zoom.current;
+    if (!z || z.state.scale > 1.01) return;
+    z.centerView(1, 0);
+  }, [size]);
 
   useImperativeHandle(ref, () => ({
     focus(item) {
@@ -86,6 +106,8 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
           minScale={1}
           maxScale={6}
           centerOnInit
+          limitToBounds
+          disablePadding
           doubleClick={{ mode: "toggle", step: 1.2, animationTime: 420, animationType: "easeInOutCubic" }}
           zoomAnimation={{ animationTime: 320, animationType: "easeOutCubic" }}
           autoAlignment={{ animationTime: 320, velocityAlignmentTime: 420, animationType: "easeOutCubic" }}
@@ -98,13 +120,13 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
           >
             <div ref={content} className="relative" style={{ width: size.w, height: size.h }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={current} alt="" draggable={false} className="absolute inset-0 size-full" />
+              <img src={current} alt="" draggable={false} className="absolute inset-0 size-full object-cover" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={base}
                 alt=""
                 draggable={false}
-                className="absolute inset-0 size-full transition-opacity duration-300"
+                className="absolute inset-0 size-full object-cover transition-opacity duration-300"
                 style={{ opacity: showBase ? 1 : 0 }}
               />
 
@@ -178,7 +200,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
           className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-ink transition-transform duration-300 ease-[var(--ease-glide)]"
           style={{ transform: showBase ? "translateX(100%)" : "none" }}
         />
-        {(["Now", "Before"] as const).map((l, i) => {
+        {(["Current", "Before"] as const).map((l, i) => {
           const on = showBase === (i === 1);
           return (
             <button
