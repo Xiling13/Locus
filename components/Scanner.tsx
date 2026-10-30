@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FRAME } from "@/lib/image";
 import { Check } from "./icons";
+import { Shared } from "./ui";
 
 export type ScanStep = { label: string; value?: string };
 
@@ -19,37 +20,39 @@ export function Scanner({ src, steps, title }: { src: string; steps: ScanStep[];
 
   return (
     <main className="pt-safe flex min-h-dvh flex-col bg-paper px-5 pb-safe">
-      <div
-        className="relative mx-auto mt-2 overflow-hidden rounded-[32px] bg-sunk"
-        style={{ aspectRatio: FRAME, width: `min(100%, calc(56dvh * ${FRAME}))` }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="absolute inset-0 size-full object-cover saturate-[0.7]" />
-        <div className="absolute inset-0 bg-paper/25" />
+      <Shared name="shot">
         <div
-          className="absolute inset-x-0 h-1/3"
-          style={{
-            background:
-              "linear-gradient(to bottom, transparent, color-mix(in oklab, var(--color-new) 30%, transparent) 85%, var(--color-new) 100%)",
-            animation: "scan 2s cubic-bezier(.6,0,.4,1) infinite",
-          }}
-        />
-      </div>
+          className="relative mx-auto mt-2 overflow-hidden rounded-[34px] bg-sunk"
+          style={{ aspectRatio: FRAME, width: `min(100%, calc(56dvh * ${FRAME}))` }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" className="absolute inset-0 size-full object-cover saturate-[0.7]" />
+          <div className="absolute inset-0 bg-paper/25" />
+          <div
+            className="absolute inset-x-0 h-1/3"
+            style={{
+              background:
+                "linear-gradient(to bottom, transparent, color-mix(in oklab, var(--color-new) 30%, transparent) 85%, var(--color-new) 100%)",
+              animation: "scan 2s cubic-bezier(.6,0,.4,1) infinite",
+            }}
+          />
+        </div>
+      </Shared>
 
       <h1 className="display mt-8 text-[40px]">{title}</h1>
       <ol className="mt-5 space-y-1">
         {steps.slice(0, shown).map((s) => (
           <li key={s.label} className="rise flex h-9 items-center gap-3 text-[16px]">
             <span
-              className={`grid size-5 place-items-center rounded-full transition-colors ${
+              className={`grid size-5 place-items-center rounded-full transition-colors duration-300 ${
                 s.value ? "bg-ink text-paper" : "border-2 border-line border-t-ink"
               }`}
               style={s.value ? undefined : { animation: "spin 0.8s linear infinite" }}
             >
-              {s.value && <Check width={12} height={12} strokeWidth={3} />}
+              {s.value && <Check width={12} height={12} strokeWidth={3} className="pop" />}
             </span>
             <span className="font-medium">{s.label}</span>
-            <span className="ml-auto text-soft">{s.value}</span>
+            {s.value && <span className="fade ml-auto text-soft">{s.value}</span>}
           </li>
         ))}
       </ol>

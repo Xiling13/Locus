@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { Back, Close, Search } from "@/components/icons";
-import { Pill, Round, Splash } from "@/components/ui";
+import { nav, Pill, Round, Screen, Splash, Thumb, useIntro } from "@/components/ui";
 import { plural } from "@/lib/format";
 import { headOf, missingOf, useHydrated, useLocus } from "@/lib/store";
 import type { LedgerObject, Space } from "@/lib/types";
@@ -40,7 +40,24 @@ export default function SearchPage() {
   const q = useDeferredValue(query.trim().toLowerCase());
 
   if (!hydrated) return <Splash />;
+  return (
+    <Screen>
+      <Results spaces={spaces} query={query} setQuery={setQuery} q={q} />
+    </Screen>
+  );
+}
 
+function Results({
+  spaces,
+  query,
+  setQuery,
+  q,
+}: {
+  spaces: Space[];
+  query: string;
+  setQuery: (v: string) => void;
+  q: string;
+}) {
   const all = spaces.flatMap((space) => {
     const missing = new Set(missingOf(space).map((m) => m.objectId));
     return headOf(space).objects.map((item) => ({ space, item, missing: missing.has(item.id) }));
@@ -59,7 +76,7 @@ export default function SearchPage() {
         <Round href="/" variant="card" aria-label="Back">
           <Back />
         </Round>
-        <label className="flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-card px-4 shadow-[0_1px_2px_rgb(0_0_0/0.05)] focus-within:ring-2 focus-within:ring-ink/10">
+        <label className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-card px-4 shadow-[0_1px_2px_rgb(0_0_0/0.06)] transition-shadow focus-within:ring-2 focus-within:ring-ink/10">
           <Search width={19} height={19} className="shrink-0 text-mute" />
           <input
             autoFocus
@@ -74,7 +91,7 @@ export default function SearchPage() {
               type="button"
               aria-label="Clear"
               onClick={() => setQuery("")}
-              className="grid size-6 place-items-center rounded-full bg-sunk text-soft"
+              className="pop grid size-6 place-items-center rounded-full bg-sunk text-soft transition-transform active:scale-90"
             >
               <Close width={13} height={13} strokeWidth={2.6} />
             </button>
@@ -96,15 +113,15 @@ export default function SearchPage() {
           {spaceHits.length > 0 && (
             <section className="mb-6">
               <h2 className="px-1 text-[13px] font-semibold text-mute">Spaces</h2>
-              <ul className="mt-2 space-y-2">
+              <ul className="mt-2 overflow-hidden rounded-[28px] bg-card">
                 {spaceHits.map((s) => (
-                  <li key={s.id}>
+                  <li key={s.id} className="border-b border-paper last:border-0">
                     <Link
                       href={`/spaces/${s.id}`}
-                      className="flex items-center gap-3.5 rounded-[24px] bg-card p-2.5 pr-4 transition active:scale-[0.99]"
+                      transitionTypes={nav("forward")}
+                      className="flex items-center gap-3.5 p-2.5 pr-4 transition-colors active:bg-paper"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={headOf(s).image} alt="" className="h-16 w-12 rounded-[14px] object-cover" />
+                      <Thumb src={headOf(s).image} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[17px] font-semibold">
                           <Highlight text={s.name} q={q} />
@@ -125,10 +142,10 @@ export default function SearchPage() {
                   <li key={`${space.id}-${item.id}`} className="border-b border-paper last:border-0">
                     <Link
                       href={`/spaces/${space.id}?item=${item.id}`}
-                      className="flex items-center gap-3.5 p-3 pr-4 transition active:bg-paper"
+                      transitionTypes={nav("forward")}
+                      className="flex items-center gap-3.5 p-2.5 pr-4 transition-colors active:bg-paper"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.crop} alt="" className="size-14 shrink-0 rounded-[16px] object-cover" />
+                      <Thumb src={item.crop} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[16px] font-semibold">
                           <Highlight text={item.label} q={q} />
@@ -151,6 +168,7 @@ export default function SearchPage() {
 }
 
 function Browse({ spaces }: { spaces: Space[] }) {
+  const intro = useIntro();
   if (!spaces.length)
     return <p className="px-6 pt-20 text-center text-[15px] text-soft">Add a space to start finding things.</p>;
   return (
@@ -159,17 +177,25 @@ function Browse({ spaces }: { spaces: Space[] }) {
         const missing = new Set(missingOf(s).map((m) => m.objectId));
         const items = headOf(s).objects;
         return (
-          <section key={s.id} className="rise" style={{ animationDelay: `${si * 60}ms` }}>
+          <section key={s.id} className={intro ? "rise" : ""} style={{ animationDelay: `${si * 60}ms` }}>
             <div className="flex items-baseline justify-between px-1">
-              <h2 className="text-[20px] font-bold tracking-[-0.02em]">{s.name}</h2>
-              <Link href={`/spaces/${s.id}`} className="text-[14px] font-semibold text-soft active:text-ink">
+              <h2 className="text-[22px] font-bold tracking-[-0.03em]">{s.name}</h2>
+              <Link
+                href={`/spaces/${s.id}`}
+                transitionTypes={nav("forward")}
+                className="text-[14px] font-semibold text-soft transition-colors active:text-ink"
+              >
                 Open
               </Link>
             </div>
-            <ul className="mt-3 grid grid-cols-4 gap-x-2.5 gap-y-3">
+            <ul className="mt-3 grid grid-cols-4 gap-x-3 gap-y-4">
               {items.map((o) => (
                 <li key={o.id}>
-                  <Link href={`/spaces/${s.id}?item=${o.id}`} className="block transition active:scale-95">
+                  <Link
+                    href={`/spaces/${s.id}?item=${o.id}`}
+                    transitionTypes={nav("forward")}
+                    className="block transition-transform duration-300 active:scale-95 active:duration-100"
+                  >
                     <span className="relative block">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={o.crop} alt="" className="aspect-square w-full rounded-[18px] object-cover" />

@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { Back, Camera, Photos } from "@/components/icons";
+import { startTransition, useRef, useState, ViewTransition } from "react";
+import { Back, Camera, Close, Photos } from "@/components/icons";
 import { ScenePhoto } from "@/components/Photo";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
-import { Button, InlineEdit, Round, Toggle } from "@/components/ui";
+import { Button, Dock, InlineEdit, nav, Round, Screen, Shared, Thumb, Toggle } from "@/components/ui";
 import { buildCommit, detect, shortId } from "@/lib/engine";
 import { plural } from "@/lib/format";
 import { FRAME, fromFile, type LoadedImage } from "@/lib/image";
@@ -36,14 +36,14 @@ export default function NewSpace() {
       { label: "Naming them" },
       { label: "Remembering where they go" },
     ];
-    setStage({ k: "scan", image, steps });
+    startTransition(() => setStage({ k: "scan", image, steps }));
     const started = Date.now();
     const detections = await detect(image);
     const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
     const n = plural(commit.objects.length, "item");
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: [n, "done", "done"][i] })) });
     await wait(Math.max(0, 2400 - (Date.now() - started)));
-    setStage({ k: "review", commit });
+    startTransition(() => setStage({ k: "review", commit }));
   }
 
   async function onFile(f?: File) {
@@ -64,9 +64,18 @@ export default function NewSpace() {
       audits: [],
       untracked: objects.filter((o) => excluded.has(o.id)),
     });
-    router.replace(`/spaces/${id}`);
+    router.replace(`/spaces/${id}`, { transitionTypes: nav("forward") });
   }
 
+  return (
+    <Screen>
+      <ViewTransition key={stage.k} enter="swap" exit="swap" default="none">
+        {render()}
+      </ViewTransition>
+    </Screen>
+  );
+
+  function render() {
   if (stage.k === "scan")
     return <Scanner src={stage.image.src} steps={stage.steps} title="Getting to know your space" />;
 
@@ -75,29 +84,33 @@ export default function NewSpace() {
     const kept = objs.length - excluded.size;
     return (
       <main className="min-h-dvh bg-paper pb-36">
-        <div className="pt-safe relative px-2">
-          <ScenePhoto
-            src={stage.commit.image}
-            width={stage.commit.width}
-            height={stage.commit.height}
-            aspect={4 / 5}
-            className="rounded-[34px]"
-            pins={objs.map((o) => ({
-              id: o.id,
-              bbox: o.bbox,
-              label: labels[o.id] ?? o.label,
-              off: excluded.has(o.id),
-            }))}
-            active={active}
-            onPick={(id) => {
-              setActive((a) => (a === id ? null : id));
-              document.getElementById(`obj-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }}
-          />
-          <div className="absolute left-5 top-3">
-            <Round aria-label="Retake" onClick={() => setStage({ k: "capture" })}>
-              <Back />
-            </Round>
+        <div className="pt-safe px-2">
+          <div className="relative">
+            <Shared name="shot">
+              <ScenePhoto
+                src={stage.commit.image}
+                width={stage.commit.width}
+                height={stage.commit.height}
+                aspect={4 / 5}
+                className="rounded-[34px]"
+                pins={objs.map((o) => ({
+                  id: o.id,
+                  bbox: o.bbox,
+                  label: labels[o.id] ?? o.label,
+                  off: excluded.has(o.id),
+                }))}
+                active={active}
+                onPick={(id) => {
+                  setActive((a) => (a === id ? null : id));
+                  document.getElementById(`obj-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+              />
+            </Shared>
+            <div className="absolute left-2 top-2">
+              <Round aria-label="Retake" onClick={() => startTransition(() => setStage({ k: "capture" }))}>
+                <Back />
+              </Round>
+            </div>
           </div>
         </div>
 
@@ -129,12 +142,7 @@ export default function NewSpace() {
                     onClick={() => setActive((a) => (a === o.id ? null : o.id))}
                     className="shrink-0"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={o.crop}
-                      alt=""
-                      className={`size-14 rounded-[18px] object-cover transition ${off ? "opacity-35 grayscale" : ""}`}
-                    />
+                    <Thumb src={o.crop} className={`transition-[opacity,filter] ${off ? "opacity-35 grayscale" : ""}`} />
                   </button>
                   <div className={`min-w-0 flex-1 transition ${off ? "opacity-40" : ""}`}>
                     <InlineEdit
@@ -162,11 +170,11 @@ export default function NewSpace() {
           </ul>
         </section>
 
-        <div className="pb-safe fixed inset-x-0 bottom-0 mx-auto max-w-[480px] bg-gradient-to-t from-paper via-paper/95 to-transparent px-5 pt-10">
+        <Dock>
           <Button onClick={save} disabled={kept === 0}>
             Save space · {plural(kept, "item")}
           </Button>
-        </div>
+        </Dock>
       </main>
     );
   }
@@ -174,8 +182,8 @@ export default function NewSpace() {
   return (
     <main className="pt-safe flex min-h-dvh flex-col bg-paper px-5 pb-safe">
       <div className="flex items-center justify-between">
-        <Round href="/" aria-label="Back" variant="card">
-          <Back />
+        <Round href="/" nav="down" aria-label="Close" variant="card">
+          <Close />
         </Round>
         <span className="text-[15px] font-semibold">New space</span>
         <span className="size-11" />
@@ -194,7 +202,7 @@ export default function NewSpace() {
         <button
           type="button"
           onClick={() => cameraRef.current?.click()}
-          className="relative mx-auto flex w-full flex-col items-center justify-center gap-4 overflow-hidden rounded-[32px] border-2 border-dashed border-line bg-card/50 px-8 text-center transition active:scale-[0.99]"
+          className="relative mx-auto flex w-full flex-col items-center justify-center gap-4 overflow-hidden rounded-[34px] border-2 border-dashed border-line bg-card/50 px-8 text-center transition-transform duration-300 active:scale-[0.98] active:duration-100"
           style={{ aspectRatio: FRAME, width: `min(100%, calc(48dvh * ${FRAME}))` }}
         >
           <span className="grid size-16 place-items-center rounded-full bg-ink text-paper">
@@ -223,7 +231,7 @@ export default function NewSpace() {
           if (!name) setName("Workbench");
           analyze(DEMO);
         }}
-        className="mt-2 h-12 text-[14px] font-medium text-soft transition active:text-ink"
+        className="mt-2 h-12 text-[14px] font-medium text-soft transition-colors active:text-ink"
       >
         Try it with a sample photo
       </button>
@@ -239,4 +247,5 @@ export default function NewSpace() {
       <input ref={libraryRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
     </main>
   );
+  }
 }

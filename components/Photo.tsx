@@ -1,4 +1,6 @@
-import type { CSSProperties, ReactNode } from "react";
+"use client";
+
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { FRAME } from "@/lib/image";
 import type { BBox } from "@/lib/types";
 
@@ -67,6 +69,10 @@ export function ScenePhoto({
   className?: string;
 }) {
   const focus = pins.find((p) => p.id === active);
+  // Keep the last spotlight around so it can fade out in place instead of vanishing.
+  const [last, setLast] = useState(focus);
+  if (focus && focus !== last) setLast(focus);
+  const spot = focus ?? last;
   return (
     <Frame src={src} width={width} height={height} aspect={aspect} className={className}>
       {pins.map((p, i) => {
@@ -77,7 +83,7 @@ export function ScenePhoto({
             type="button"
             aria-label={p.label}
             onClick={() => onPick?.(p.id)}
-            className="pop absolute grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center transition-opacity duration-300"
+            className="pop absolute grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center transition-[opacity,scale] duration-300 active:scale-75"
             style={{
               left: `${(p.bbox.x + p.bbox.w / 2) * 100}%`,
               top: `${(p.bbox.y + p.bbox.h / 2) * 100}%`,
@@ -94,18 +100,22 @@ export function ScenePhoto({
           </button>
         );
       })}
-      {focus && (
+      {spot && (
         <div
-          key={focus.id}
-          className="fade pointer-events-none absolute rounded-[10px] ring-2 ring-white"
-          style={{ ...pct(focus.bbox), boxShadow: "0 0 0 9999px rgb(21 21 20 / 0.5)" }}
+          className="pointer-events-none absolute rounded-[10px] ring-2 ring-white transition-[left,top,width,height,opacity] duration-500 ease-[var(--ease-glide)]"
+          style={{
+            ...pct(spot.bbox),
+            opacity: focus ? 1 : 0,
+            boxShadow: "0 0 0 9999px rgb(21 21 20 / 0.5)",
+          }}
         >
           <span
-            className={`glass absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-semibold ${
-              focus.bbox.y < 0.1 ? "top-full mt-2" : "bottom-full mb-2"
+            key={spot.id}
+            className={`glass fade absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-semibold ${
+              spot.bbox.y < 0.1 ? "top-full mt-2" : "bottom-full mb-2"
             }`}
           >
-            {focus.label}
+            {spot.label}
           </span>
         </div>
       )}

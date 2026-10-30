@@ -6,33 +6,89 @@ import {
   useImperativeHandle,
   useRef,
   useState,
+  ViewTransition,
   type ComponentProps,
   type ReactNode,
   type Ref,
 } from "react";
-import type { Audit } from "@/lib/types";
+import type { Audit, Space } from "@/lib/types";
 import { Pencil } from "./icons";
+
+/**
+ * Direction of a navigation. Forward/back slide sideways; up/down are for screens
+ * that open like a modal (camera, new space) and close back down.
+ */
+export type Nav = "forward" | "back" | "up" | "down";
+export const nav = (d: Nav) => [`nav-${d}`];
+
+const NAV_CLASSES = {
+  "nav-forward": "nav-forward",
+  "nav-back": "nav-back",
+  "nav-up": "nav-up",
+  "nav-down": "nav-down",
+  default: "none",
+};
+
+/** Wrap every page so route changes slide in the direction the link asked for. */
+export function Screen({ children }: { children: ReactNode }) {
+  return (
+    <ViewTransition enter={NAV_CLASSES} exit={NAV_CLASSES} default="none">
+      {children}
+    </ViewTransition>
+  );
+}
+
+let booted = false;
+
+/**
+ * True only for the screen the app opened on. Entrance animations use it so they play once
+ * on launch; later screens arrive through the route transition instead, and a half-risen
+ * element would otherwise be what a shared photo morphs into.
+ */
+export function useIntro() {
+  const [intro] = useState(() => !booted);
+  useEffect(() => {
+    booted = true;
+  }, []);
+  return intro;
+}
+
+/** A photo that morphs between screens when both render it under the same name. */
+export function Shared({ name, children }: { name: string; children: ReactNode }) {
+  return (
+    <ViewTransition name={name} share="morph" default="none">
+      {children}
+    </ViewTransition>
+  );
+}
 
 type Tone = "ink" | "card" | "sunk" | "miss" | "clear" | "smoke";
 
 const tones: Record<Tone, string> = {
   ink: "bg-ink text-paper active:bg-black",
-  card: "bg-card text-ink active:bg-sunk",
+  card: "bg-card text-ink shadow-[0_1px_2px_rgb(0_0_0/0.06)] active:bg-sunk",
   sunk: "bg-sunk text-ink active:bg-line",
   miss: "bg-miss text-ink active:brightness-95",
   clear: "text-soft active:text-ink",
   smoke: "bg-white/12 text-white active:bg-white/20",
 };
 
-export const buttonClass = (tone: Tone = "ink", className = "") =>
-  `flex h-15 w-full items-center justify-center gap-2.5 rounded-full text-[17px] font-semibold tracking-[-0.01em] transition-[transform,background-color,filter] duration-150 active:scale-[0.98] disabled:opacity-40 ${tones[tone]} ${className}`;
+/** `lg` is the screen-level action; `md` is for actions inside a card or sheet row. */
+const sizes = {
+  lg: "h-15 text-[17px]",
+  md: "h-13 text-[16px]",
+};
+
+export const buttonClass = (tone: Tone = "ink", className = "", size: keyof typeof sizes = "lg") =>
+  `flex w-full items-center justify-center gap-2.5 rounded-full font-semibold tracking-[-0.01em] transition-[transform,background-color,color,filter,opacity] duration-200 active:scale-[0.97] active:duration-75 disabled:pointer-events-none disabled:opacity-40 ${sizes[size]} ${tones[tone]} ${className}`;
 
 export function Button({
   tone = "ink",
+  size = "lg",
   className = "",
   ...rest
-}: ComponentProps<"button"> & { tone?: Tone }) {
-  return <button type="button" {...rest} className={buttonClass(tone, className)} />;
+}: ComponentProps<"button"> & { tone?: Tone; size?: keyof typeof sizes }) {
+  return <button type="button" {...rest} className={buttonClass(tone, className, size)} />;
 }
 
 const rounds = {
@@ -44,19 +100,21 @@ const rounds = {
 
 export function Round({
   href,
+  nav: dir = "back",
   children,
   variant = "glass",
   className = "",
   ...rest
 }: ComponentProps<"button"> & {
   href?: string;
+  nav?: Nav;
   children: ReactNode;
   variant?: keyof typeof rounds;
 }) {
-  const cls = `grid size-11 shrink-0 place-items-center rounded-full transition active:scale-92 ${rounds[variant]} ${className}`;
+  const cls = `grid size-11 shrink-0 place-items-center rounded-full transition-[transform,background-color,color] duration-200 active:scale-90 active:duration-75 ${rounds[variant]} ${className}`;
   if (href)
     return (
-      <Link href={href} className={cls} aria-label={rest["aria-label"]}>
+      <Link href={href} transitionTypes={nav(dir)} className={cls} aria-label={rest["aria-label"]}>
         {children}
       </Link>
     );
@@ -64,6 +122,47 @@ export function Round({
     <button type="button" {...rest} className={cls}>
       {children}
     </button>
+  );
+}
+
+/** Square list thumbnail. Same shape as the item tiles, one size everywhere. */
+export function Thumb({ src, className = "" }: { src: string; className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" draggable={false} className={`size-14 shrink-0 rounded-[18px] bg-sunk object-cover ${className}`} />;
+}
+
+/** Filter chip used above lists. */
+export function Chip({
+  on,
+  onClick,
+  onClass = "bg-ink text-paper",
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  onClass?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`flex h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[14px] font-semibold transition-[transform,background-color,color] duration-200 active:scale-95 ${
+        on ? onClass : "bg-card text-soft"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Bottom action bar that floats over scrolling content. */
+export function Dock({ children }: { children: ReactNode }) {
+  return (
+    <div className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] bg-gradient-to-t from-paper via-paper/95 to-transparent px-5 pt-10 *:pointer-events-auto">
+      {children}
+    </div>
   );
 }
 
@@ -115,6 +214,20 @@ export function Toggle({ on, label, onChange }: { on: boolean; label: string; on
   );
 }
 
+export function Badge({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-sunk px-2 text-[11px] font-semibold tracking-normal text-soft">
+      {children}
+    </span>
+  );
+}
+
+/** "Reference" if this check is the current reference photo, "Saved" if it was one earlier. */
+export function SavedBadge({ space, audit }: { space: Space; audit: Audit }) {
+  if (!audit.committedAs) return null;
+  return <Badge>{audit.committedAs === space.headId ? "Reference" : "Saved"}</Badge>;
+}
+
 /** Coloured dots summarising a check: "2 missing · 1 new · 1 moved". */
 export function Changes({ audit }: { audit: Audit }) {
   const n = (k: string) => audit.items.filter((i) => i.kind === k).length;
@@ -150,13 +263,15 @@ export function Sheet({
   label: string;
 }) {
   const [closing, setClosing] = useState(false);
+  const [entered, setEntered] = useState(false);
   const [drag, setDrag] = useState(0);
-  const [start, setStart] = useState<number | null>(null);
+  const [held, setHeld] = useState(false);
+  const track = useRef<{ y0: number; y: number; t: number; v: number } | null>(null);
 
   const close = () => {
     if (closing) return;
     setClosing(true);
-    setTimeout(onClose, 260);
+    setTimeout(onClose, 300);
   };
 
   useEffect(() => {
@@ -176,26 +291,51 @@ export function Sheet({
         type="button"
         aria-label="Close"
         onClick={close}
-        className={`fade absolute inset-0 bg-ink/35 transition-opacity duration-250 ${closing ? "opacity-0" : ""}`}
+        className="fade absolute inset-0 bg-ink/35"
+        style={{
+          opacity: closing ? 0 : 1 - Math.min(drag, 400) / 500,
+          transition: held ? "none" : "opacity 0.3s var(--ease-glide)",
+        }}
       />
       <div
-        className="sheet absolute inset-x-2 bottom-2 max-h-[88dvh] overflow-hidden rounded-[34px] bg-card shadow-[0_-8px_40px_rgb(0_0_0/0.18)]"
+        onAnimationEnd={(e) => e.target === e.currentTarget && setEntered(true)}
+        className={`absolute inset-x-2 bottom-2 max-h-[88dvh] overflow-hidden rounded-[34px] bg-card shadow-[0_-8px_40px_rgb(0_0_0/0.18)] ${
+          entered ? "" : "sheet"
+        }`}
         style={{
-          transform: closing ? "translateY(110%)" : `translateY(${drag}px)`,
-          transition: start === null ? "transform 0.3s var(--ease-out-expo)" : "none",
+          transform: closing ? "translateY(calc(100% + 16px))" : `translateY(${drag}px)`,
+          transition: held ? "none" : `transform ${closing ? 0.3 : 0.42}s var(--ease-glide)`,
         }}
       >
         <div
-          className="flex h-7 cursor-grab touch-none items-center justify-center"
+          className="flex h-7 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
           onPointerDown={(e) => {
-            setStart(e.clientY);
+            track.current = { y0: e.clientY, y: e.clientY, t: e.timeStamp, v: 0 };
+            setHeld(true);
             e.currentTarget.setPointerCapture(e.pointerId);
           }}
-          onPointerMove={(e) => start !== null && setDrag(Math.max(0, e.clientY - start))}
+          onPointerMove={(e) => {
+            const t = track.current;
+            if (!t) return;
+            const dt = Math.max(1, e.timeStamp - t.t);
+            t.v = 0.7 * ((e.clientY - t.y) / dt) + 0.3 * t.v;
+            t.y = e.clientY;
+            t.t = e.timeStamp;
+            const d = e.clientY - t.y0;
+            // Rubber-band when pulled up past the resting point.
+            setDrag(d >= 0 ? d : -Math.sqrt(-d) * 2);
+          }}
           onPointerUp={() => {
-            setStart(null);
-            if (drag > 90) close();
+            const t = track.current;
+            track.current = null;
+            setHeld(false);
+            if (t && (drag > 120 || (drag > 24 && t.v > 0.45))) close();
             else setDrag(0);
+          }}
+          onPointerCancel={() => {
+            track.current = null;
+            setHeld(false);
+            setDrag(0);
           }}
         >
           <span className="h-1.5 w-10 rounded-full bg-line" />
@@ -280,7 +420,7 @@ export function Missing() {
       <div>
         <p className="display text-[40px]">Space not found</p>
         <p className="mt-3 text-[15px] text-soft">It may have been deleted.</p>
-        <Link href="/" className={buttonClass("ink", "mt-8")}>
+        <Link href="/" transitionTypes={nav("back")} className={buttonClass("ink", "mt-8")}>
           Back home
         </Link>
       </div>

@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState, type ReactNode } from "react";
 import { AuditViewport, type ViewportHandle } from "@/components/AuditViewport";
 import { Back, Check, Chevron } from "@/components/icons";
-import { Button, buttonClass, Missing, Round, Splash, Toggle } from "@/components/ui";
+import { Button, buttonClass, Chip, Missing, nav, Round, Screen, Shared, Sheet, Splash, Thumb, Toggle } from "@/components/ui";
 import { recommit } from "@/lib/engine";
 import { ago, plural, stamp } from "@/lib/format";
 import { direction, region } from "@/lib/geometry";
 import { FRAME } from "@/lib/image";
-import { headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
+import { deletionOf, headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Audit, Commit, DiffItem, DiffKind, Space } from "@/lib/types";
 
 const KINDS: { k: DiffKind; label: string; dot: string; on: string }[] = [
@@ -23,14 +23,28 @@ export default function AuditPage({ params, searchParams }: PageProps<"/spaces/[
   const { id, auditId } = use(params);
   const { item } = use(searchParams);
   const hydrated = useHydrated();
-  const space = useSpace(id);
+  const liveSpace = useSpace(id);
+  const live = liveSpace?.audits.find((a) => a.id === auditId);
+  // Keep drawing the report while we navigate away from deleting it.
+  const [kept, setKept] = useState(liveSpace);
+  if (liveSpace && live && liveSpace !== kept) setKept(liveSpace);
+  const space = live ? liveSpace : leaving === auditId ? kept : undefined;
   const audit = space?.audits.find((a) => a.id === auditId);
+  const shown =
+    space && audit
+      ? { space, audit, base: space.commits.find((c) => c.id === audit.baseCommitId) ?? headOf(space) }
+      : undefined;
 
   if (!hydrated) return <Splash />;
-  if (!space || !audit) return <Missing />;
-  const base = space.commits.find((c) => c.id === audit.baseCommitId) ?? headOf(space);
-  return <Report space={space} audit={audit} base={base} initial={typeof item === "string" ? item : null} />;
+  if (!shown) return <Missing />;
+  return (
+    <Screen>
+      <Report {...shown} initial={typeof item === "string" ? item : null} />
+    </Screen>
+  );
 }
+
+let leaving: string | null = null;
 
 function Report({
   space,
@@ -51,6 +65,8 @@ function Report({
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [skip, setSkip] = useState<Set<string>>(new Set());
+  const [confirm, setConfirm] = useState(false);
+  const deleteCheck = useLocus((s) => s.deleteCheck);
 
   const order = { removed: 0, added: 1, moved: 2 };
   const items = [...audit.items].sort((a, b) => order[a.kind] - order[b.kind]);
@@ -82,7 +98,13 @@ function Report({
     setSaving(true);
     const { commit, untracked } = await recommit(base, audit, skip);
     pushCommit(space.id, commit, audit.id, untracked);
-    router.push(`/spaces/${space.id}`);
+    router.push(`/spaces/${space.id}`, { transitionTypes: nav("back") });
+  }
+
+  function remove() {
+    leaving = audit.id;
+    deleteCheck(space.id, audit.id);
+    router.replace(`/spaces/${space.id}`, { transitionTypes: nav("back") });
   }
 
   return (
@@ -91,16 +113,20 @@ function Report({
         className="relative shrink-0 overflow-hidden rounded-b-[34px]"
         style={{ height: `min(calc(min(100vw, 480px) / ${FRAME}), 56dvh)` }}
       >
-        <AuditViewport
-          ref={viewport}
-          current={audit.image}
-          base={base.image}
-          aspect={audit.width / audit.height}
-          items={items}
-          selected={selected}
-          onSelect={(id) => select(id, "canvas")}
-        />
-        <div className="pt-safe absolute left-3 top-0">
+        <Shared name="shot">
+          <div className="size-full">
+            <AuditViewport
+              ref={viewport}
+              current={audit.image}
+              base={base.image}
+              aspect={audit.width / audit.height}
+              items={items}
+              selected={selected}
+              onSelect={(id) => select(id, "canvas")}
+            />
+          </div>
+        </Shared>
+        <div className="pt-safe absolute left-4 top-0">
           <Round href={`/spaces/${space.id}`} aria-label="Back">
             <Back />
           </Round>
@@ -122,14 +148,14 @@ function Report({
 
           {items.length > 0 && (
             <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
-              <Chip on={filter === null} onClick={() => setFilter(null)} className="bg-ink text-paper">
+              <Chip on={filter === null} onClick={() => setFilter(null)}>
                 All {items.length}
               </Chip>
               {KINDS.map(({ k, label, dot, on }) => {
                 const n = items.filter((i) => i.kind === k).length;
                 if (!n) return null;
                 return (
-                  <Chip key={k} on={filter === k} onClick={() => setFilter(filter === k ? null : k)} className={on}>
+                  <Chip key={k} on={filter === k} onClick={() => setFilter(filter === k ? null : k)} onClass={on}>
                     <span className={`size-2 rounded-full ${dot}`} />
                     {label} {n}
                   </Chip>
@@ -140,7 +166,7 @@ function Report({
           <p className="mt-3 text-[13px] text-mute">{plural(audit.unchanged, "other thing")} right where they were</p>
         </div>
 
-        <ul className="mt-4 space-y-2 px-3">
+        <ul className="mt-4 space-y-2 px-4">
           {visible.map((i) => (
             <Row
               key={i.id}
@@ -166,16 +192,18 @@ function Report({
           ))}
         </ul>
 
-        <div className="pb-safe px-3 pt-8">
+        <div className="pb-safe px-4 pt-8">
           {audit.committedAs ? (
-            <div className="flex items-center gap-3 rounded-[26px] bg-card p-5">
-              <span className="grid size-9 place-items-center rounded-full bg-ink text-paper">
+            <div className="flex items-center gap-3.5 rounded-[28px] bg-card p-4 pl-5">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-ink text-paper">
                 <Check width={18} height={18} strokeWidth={2.6} />
               </span>
-              <span className="text-[15px] font-medium">Saved as your reference photo</span>
+              <span className="text-[15px] font-medium">
+                {audit.committedAs === space.headId ? "This photo is your reference" : "Saved as a reference earlier"}
+              </span>
             </div>
           ) : (
-            <div className="rounded-[30px] bg-card p-5">
+            <div className="rounded-[28px] bg-card p-5">
               <p className="text-[22px] font-bold tracking-[-0.03em]">Done checking?</p>
               <p className="mt-1.5 text-[15px] leading-relaxed text-soft">
                 {pending ? `${plural(pending, "spot")} still ${pending === 1 ? "needs" : "need"} a look. ` : ""}
@@ -186,37 +214,57 @@ function Report({
               </Button>
             </div>
           )}
-          <Link href={`/spaces/${space.id}`} className={buttonClass("clear", "mt-2")}>
+          <Link href={`/spaces/${space.id}`} transitionTypes={nav("back")} className={buttonClass("clear", "mt-2")}>
             Back to {space.name}
           </Link>
+          <Button tone="clear" className="text-miss-deep/80 active:text-miss-deep" onClick={() => setConfirm(true)}>
+            Delete this check
+          </Button>
         </div>
       </section>
+
+      {confirm && (
+        <Sheet label="Delete check" onClose={() => setConfirm(false)}>
+          {(close) => <DeleteCheck space={space} audit={audit} onKeep={close} onDelete={remove} />}
+        </Sheet>
+      )}
     </main>
   );
 }
 
-function Chip({
-  on,
-  onClick,
-  className,
-  children,
+function DeleteCheck({
+  space,
+  audit,
+  onKeep,
+  onDelete,
 }: {
-  on: boolean;
-  onClick: () => void;
-  className: string;
-  children: ReactNode;
+  space: Space;
+  audit: Audit;
+  onKeep: () => void;
+  onDelete: () => void;
 }) {
+  const { drop, previous } = deletionOf(space, audit.id);
+  const later = drop.length - 1;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`flex h-10 shrink-0 items-center gap-2 rounded-full px-4 text-[14px] font-semibold transition ${
-        on ? className : "bg-card text-soft"
-      }`}
-    >
-      {children}
-    </button>
+    <div className="px-5 pb-3 pt-2">
+      <p className="display text-[30px]">Delete this check?</p>
+      <p className="mt-2 text-[15px] leading-relaxed text-soft">
+        {previous
+          ? `Its photo is your reference right now. Deleting it brings back the reference from ${stamp(previous.createdAt)}.`
+          : audit.committedAs
+            ? "It comes out of your history. Your reference photo stays the same."
+            : "It comes out of your history. Nothing else changes."}
+        {later > 0 && ` The ${plural(later, "newer check")} compared against it will go too.`}
+      </p>
+      <div className="mt-6 flex gap-2">
+        <Button tone="sunk" className="flex-1" onClick={onKeep}>
+          Keep
+        </Button>
+        <Button tone="miss" className="flex-1" onClick={onDelete}>
+          Delete
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -251,15 +299,20 @@ function Row({
   const dot = item.kind === "removed" ? "bg-miss" : item.kind === "added" ? "bg-new" : "bg-move";
 
   return (
-    <li id={`row-${item.id}`} className="overflow-hidden rounded-[26px] bg-card">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-3.5 p-2.5 pr-4 text-left">
+    <li
+      id={`row-${item.id}`}
+      className={`overflow-hidden rounded-[28px] bg-card transition-shadow duration-300 ${
+        open ? "shadow-[0_10px_30px_-14px_rgb(0_0_0/0.22)]" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3.5 p-2.5 pr-4 text-left transition-colors active:bg-paper/60"
+      >
         <span className="relative shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.crop}
-            alt=""
-            className={`size-14 rounded-[18px] object-cover ${item.resolution === "found" ? "opacity-40" : ""}`}
-          />
+          <Thumb src={item.crop} className={`transition-opacity ${item.resolution === "found" ? "opacity-40" : ""}`} />
           <span className={`absolute -right-0.5 -top-0.5 size-3.5 rounded-full ring-[3px] ring-card ${dot}`} />
         </span>
         <span className="min-w-0 flex-1">
@@ -269,20 +322,23 @@ function Row({
         <Chevron
           width={20}
           height={20}
-          className={`shrink-0 text-mute transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+          className={`shrink-0 text-mute transition-transform duration-400 ease-[var(--ease-glide)] ${open ? "rotate-180" : ""}`}
         />
       </button>
 
       <div
-        className="grid transition-[grid-template-rows] duration-400 ease-[var(--ease-out-expo)]"
+        className="grid transition-[grid-template-rows] duration-400 ease-[var(--ease-glide)]"
         style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
       >
-        <div className="min-h-0 overflow-hidden">
+        <div
+          className={`min-h-0 overflow-hidden transition-opacity duration-300 ${open ? "opacity-100 delay-75" : "opacity-0"}`}
+          inert={!open}
+        >
           <div className="px-4 pb-4 pt-1">
             {item.kind === "removed" && ledger && <MissingDetail item={item} ledger={ledger} onResolve={onResolve} />}
             {item.kind === "moved" && <MovedDetail item={item} hint={ledger?.hint} />}
             {item.kind === "added" && (
-              <p className="rounded-[18px] bg-paper p-4 text-[15px] leading-relaxed text-soft">
+              <p className="rounded-[20px] bg-paper p-4 text-[15px] leading-relaxed text-soft">
                 Wasn’t here last time — now at the {region(item.to!)}.
                 {track && (track.on ? " Save this check and it becomes one of your items." : " Checks will ignore it.")}
               </p>
@@ -302,7 +358,7 @@ function Row({
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
   return (
-    <dl className="space-y-3 rounded-[18px] bg-paper p-4">
+    <dl className="space-y-3 rounded-[20px] bg-paper p-4">
       {rows.map(([k, v]) => (
         <div key={k}>
           <dt className="text-[13px] font-medium text-mute">{k}</dt>
@@ -338,23 +394,19 @@ function MissingDetail({
       )}
       {!item.resolution ? (
         <div className="mt-4 flex gap-2">
-          <Button tone="sunk" className="h-13 flex-1 text-[16px]" onClick={() => onResolve("found")}>
+          <Button tone="sunk" size="md" className="flex-1" onClick={() => onResolve("found")}>
             Found it
           </Button>
           {occluded && (
-            <Button tone="miss" className="h-13 flex-1 text-[16px]" onClick={() => onResolve("missing")}>
+            <Button tone="miss" size="md" className="flex-1" onClick={() => onResolve("missing")}>
               It’s gone
             </Button>
           )}
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => onResolve(undefined)}
-          className="mt-3 h-10 px-1 text-[14px] font-semibold text-soft active:text-ink"
-        >
+        <Button tone="clear" size="md" className="mt-2" onClick={() => onResolve(undefined)}>
           Undo
-        </button>
+        </Button>
       )}
     </>
   );

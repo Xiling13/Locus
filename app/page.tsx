@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Chevron, Clock, Plus, Search } from "@/components/icons";
 import { Frame } from "@/components/Photo";
-import { Logo, Pill, Round, Splash, buttonClass } from "@/components/ui";
+import { Logo, nav, Pill, Round, Screen, Shared, Splash, Thumb, buttonClass, useIntro } from "@/components/ui";
 import { ago, plural } from "@/lib/format";
 import { ensureDemo, headOf, missingOf, openCheck, useHydrated, useLocus } from "@/lib/store";
 import type { Space } from "@/lib/types";
@@ -13,6 +13,7 @@ export default function Home() {
   const hydrated = useHydrated();
   const spaces = useLocus((s) => s.spaces);
   const seeded = useLocus((s) => s.seeded);
+  const intro = useIntro();
 
   useEffect(() => {
     if (hydrated && !seeded) ensureDemo();
@@ -25,15 +26,16 @@ export default function Home() {
   const items = spaces.reduce((n, s) => n + headOf(s).objects.length, 0);
 
   return (
+    <Screen>
     <main className="flex h-dvh flex-col bg-paper">
-      <header className="pt-safe flex shrink-0 items-center justify-between px-5">
-        <Logo />
-        <Round href="/activity" variant="card" aria-label="Activity" className="-mr-1">
+      <header className="pt-safe flex shrink-0 items-center justify-between px-4">
+        <Logo className="pl-1" />
+        <Round href="/activity" nav="forward" variant="card" aria-label="Activity">
           <Clock width={21} height={21} />
         </Round>
       </header>
 
-      <h1 className="display rise mt-6 shrink-0 px-5 text-[52px]">
+      <h1 className={`display mt-6 shrink-0 px-5 text-[52px] ${intro ? "rise" : ""}`}>
         {missing.length > 0 ? (
           <>
             {plural(missing.length, "thing")}
@@ -56,20 +58,20 @@ export default function Home() {
       </h1>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <Deck spaces={spaces} />
+        <Deck spaces={spaces} intro={intro} />
 
         {missing.length > 0 && (
-          <section className="rise mt-10 shrink-0 px-5" style={{ animationDelay: "200ms" }}>
-            <h2 className="text-[20px] font-bold tracking-[-0.02em]">Needs a look</h2>
-            <ul className="mt-3 overflow-hidden rounded-[28px] bg-card">
+          <section className={`mt-10 shrink-0 px-5 ${intro ? "rise" : ""}`} style={{ animationDelay: "200ms" }}>
+            <h2 className="text-[22px] font-bold tracking-[-0.03em]">Needs a look</h2>
+            <ul className="mt-4 overflow-hidden rounded-[28px] bg-card">
               {missing.map(({ space, item }) => (
                 <li key={`${space.id}-${item.id}`} className="border-b border-paper last:border-0">
                   <Link
                     href={`/spaces/${space.id}/audits/${openCheck(space)!.id}?item=${item.id}`}
-                    className="flex items-center gap-3.5 p-3 pr-4 transition active:bg-paper"
+                    transitionTypes={nav("forward")}
+                    className="flex items-center gap-3.5 p-2.5 pr-4 transition-colors active:bg-paper"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.crop} alt="" className="size-12 rounded-[14px] object-cover" />
+                    <Thumb src={item.crop} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[16px] font-semibold">{item.label}</span>
                       <span className="block truncate text-[13px] text-soft">{space.name}</span>
@@ -84,20 +86,21 @@ export default function Home() {
       </div>
 
       <nav className="pb-safe flex shrink-0 gap-2 px-5 pt-6">
-        <Link href="/search" className={buttonClass("card", "flex-1")}>
+        <Link href="/search" transitionTypes={nav("forward")} className={buttonClass("card", "flex-1")}>
           <Search width={20} height={20} />
           Search
         </Link>
-        <Link href="/spaces/new" className={buttonClass("ink", "flex-1")}>
+        <Link href="/spaces/new" transitionTypes={nav("up")} className={buttonClass("ink", "flex-1")}>
           <Plus width={20} height={20} />
           New space
         </Link>
       </nav>
     </main>
+    </Screen>
   );
 }
 
-function Deck({ spaces }: { spaces: Space[] }) {
+function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
   const rail = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; left: number } | null>(null);
   const dragged = useRef(false);
@@ -184,14 +187,15 @@ function Deck({ spaces }: { spaces: Space[] }) {
         className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto px-[11%] pb-10 pt-2 active:cursor-grabbing"
       >
         {spaces.map((s, i) => (
-          <DeckCard key={s.id} index={i}>
+          <DeckCard key={s.id} index={i} intro={intro}>
             <SpaceCard space={s} />
           </DeckCard>
         ))}
-        <DeckCard index={spaces.length}>
+        <DeckCard index={spaces.length} intro={intro}>
           <Link
             href="/spaces/new"
-            className="flex h-full flex-col items-center justify-center gap-4 rounded-[34px] border-2 border-dashed border-line text-center transition active:scale-[0.98]"
+            transitionTypes={nav("up")}
+            className="flex h-full flex-col items-center justify-center gap-4 rounded-[34px] border-2 border-dashed border-line text-center transition-transform duration-300 active:scale-[0.97] active:duration-100"
           >
             <span className="grid size-16 place-items-center rounded-full bg-ink text-paper">
               <Plus width={26} height={26} />
@@ -221,10 +225,10 @@ function Deck({ spaces }: { spaces: Space[] }) {
   );
 }
 
-function DeckCard({ index, children }: { index: number; children: ReactNode }) {
+function DeckCard({ index, intro, children }: { index: number; intro: boolean; children: ReactNode }) {
   return (
     <div
-      className="rise w-[78%] max-w-[360px] shrink-0 snap-center"
+      className={`w-[78%] max-w-[360px] shrink-0 snap-center ${intro ? "rise" : ""}`}
       style={{
         animationDelay: `${index * 70 + 60}ms`,
         transform: "rotate(calc(var(--d, 0) * 4deg)) scale(calc(1 - var(--a, 0) * 0.09))",
@@ -245,16 +249,19 @@ function SpaceCard({ space }: { space: Space }) {
   return (
     <Link
       href={`/spaces/${space.id}`}
-      className="block rounded-[34px] bg-card p-2 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.25)] transition active:scale-[0.98]"
+      transitionTypes={nav("forward")}
+      className="block rounded-[34px] bg-card p-2 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.25)] transition-transform duration-300 active:scale-[0.97] active:duration-100"
     >
       <div className="relative">
-        <Frame
-          src={last && !last.committedAs ? last.image : head.image}
-          width={head.width}
-          height={head.height}
-          aspect={4 / 5}
-          className="rounded-[27px]"
-        />
+        <Shared name={`space-${space.id}`}>
+          <Frame
+            src={last && !last.committedAs ? last.image : head.image}
+            width={head.width}
+            height={head.height}
+            aspect={4 / 5}
+            className="rounded-[27px]"
+          />
+        </Shared>
         <div className="absolute left-3 top-3">
           {missing.length > 0 ? (
             <Pill tone="miss" className="shadow-sm">

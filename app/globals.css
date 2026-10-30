@@ -25,6 +25,119 @@
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* iOS sheet curve: fast start, long settle. */
+  --ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --default-transition-duration: 220ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* ---------- Route transitions ---------- */
+
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(*) {
+  animation-duration: 420ms;
+  animation-timing-function: var(--ease-glide);
+}
+
+::view-transition-old(.nav-forward),
+::view-transition-old(.nav-back),
+::view-transition-old(.nav-up),
+::view-transition-old(.nav-down) {
+  animation: 160ms ease-in both vt-fade reverse, 420ms var(--ease-glide) both vt-slide reverse;
+}
+::view-transition-new(.nav-forward),
+::view-transition-new(.nav-back),
+::view-transition-new(.nav-up),
+::view-transition-new(.nav-down) {
+  animation: 240ms ease-out 90ms both vt-fade, 420ms var(--ease-glide) both vt-slide;
+}
+::view-transition-old(.nav-forward) {
+  --vt-x: -48px;
+}
+::view-transition-new(.nav-forward) {
+  --vt-x: 48px;
+}
+::view-transition-old(.nav-back) {
+  --vt-x: 48px;
+}
+::view-transition-new(.nav-back) {
+  --vt-x: -48px;
+}
+::view-transition-old(.nav-up) {
+  --vt-y: -16px;
+}
+::view-transition-new(.nav-up) {
+  --vt-y: 56px;
+}
+::view-transition-old(.nav-down) {
+  --vt-y: 56px;
+}
+::view-transition-new(.nav-down) {
+  --vt-y: -16px;
+}
+
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-slide {
+  from {
+    translate: var(--vt-x, 0) var(--vt-y, 0);
+  }
+}
+
+/* Shared photo that travels between screens. */
+::view-transition-group(.morph) {
+  animation-duration: 480ms;
+  animation-timing-function: var(--ease-glide);
+  z-index: 10;
+}
+::view-transition-image-pair(.morph) {
+  animation: 480ms var(--ease-glide) both vt-soften;
+}
+::view-transition-old(.morph),
+::view-transition-new(.morph) {
+  height: 100%;
+  object-fit: cover;
+}
+@keyframes vt-soften {
+  40% {
+    filter: blur(2px);
+  }
+}
+
+/* Same-screen swaps (camera → scanning). */
+::view-transition-old(.swap) {
+  animation: 180ms ease-in both vt-fade reverse;
+}
+::view-transition-new(.swap) {
+  animation: 320ms ease-out 80ms both vt-fade;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 html,
@@ -71,7 +184,7 @@ body {
   }
 }
 .rise {
-  animation: rise 0.7s var(--ease-out-expo) both;
+  animation: rise 0.6s var(--ease-out-expo) both;
 }
 
 @keyframes fade {
@@ -89,7 +202,7 @@ body {
   }
 }
 .sheet {
-  animation: sheet 0.5s var(--ease-out-expo) both;
+  animation: sheet 0.46s var(--ease-glide) both;
 }
 
 @keyframes pop {

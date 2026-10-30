@@ -17,6 +17,7 @@ type State = {
   addAudit: (spaceId: string, audit: Audit) => void;
   resolveItem: (spaceId: string, auditId: string, itemId: string, r: DiffItem["resolution"]) => void;
   pushCommit: (spaceId: string, commit: Commit, fromAudit?: string, untracked?: LedgerObject[]) => void;
+  deleteCheck: (spaceId: string, auditId: string) => void;
   untrackItem: (spaceId: string, objectId: string) => void;
   trackItem: (spaceId: string, objectId: string) => void;
   markSeeded: () => void;
@@ -78,6 +79,26 @@ export const useLocus = create<State>()(
             audits: sp.audits.map((a) => (a.id === fromAudit ? { ...a, committedAs: commit.id } : a)),
             untracked: [...untracked, ...(sp.untracked ?? [])],
           })),
+        })),
+      deleteCheck: (spaceId, auditId) =>
+        setState((s) => ({
+          spaces: mapSpace(s.spaces, spaceId, (sp) => {
+            const { drop, commit } = deletionOf(sp, auditId);
+            if (!drop.length) return sp;
+            const gone = new Set(drop.map((a) => a.id));
+            if (!commit) return { ...sp, audits: sp.audits.filter((a) => !gone.has(a.id)) };
+            const off = new Set(sp.untracked?.map((o) => o.signature));
+            return {
+              ...sp,
+              headId: commit.parentId!,
+              commits: sp.commits
+                .filter((c) => c.id !== commit.id)
+                .map((c) =>
+                  c.id === commit.parentId ? { ...c, objects: c.objects.filter((o) => !off.has(o.signature)) } : c,
+                ),
+              audits: sp.audits.filter((a) => !gone.has(a.id)),
+            };
+          }),
         })),
       untrackItem: (spaceId, objectId) =>
         setState((s) => ({
@@ -150,6 +171,21 @@ export const openCheck = (space: Space) =>
 /** Items from the latest open check that are still unaccounted for. */
 export const missingOf = (space: Space) =>
   openCheck(space)?.items.filter((i) => i.kind === "removed" && i.resolution !== "found") ?? [];
+
+/**
+ * What deleting a check takes with it. A check that became the current reference photo
+ * is rolled back: its photo goes, the previous one is the reference again, and any later
+ * checks compared against it go too. The first photo of a space is never removed here.
+ */
+export function deletionOf(space: Space, auditId: string) {
+  const audit = space.audits.find((a) => a.id === auditId);
+  if (!audit) return { drop: [] as Audit[], commit: undefined };
+  const c = audit.committedAs ? space.commits.find((x) => x.id === audit.committedAs) : undefined;
+  const commit = c && c.id === space.headId && c.parentId ? c : undefined;
+  const drop = commit ? [audit, ...space.audits.filter((a) => a.baseCommitId === commit.id)] : [audit];
+  const previous = commit ? space.commits.find((x) => x.id === commit.parentId) : undefined;
+  return { drop, commit, previous };
+}
 
 let seeding: Promise<void> | null = null;
 

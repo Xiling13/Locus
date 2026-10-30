@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { use, useEffect, useRef, useState } from "react";
+import { startTransition, use, useEffect, useRef, useState, ViewTransition } from "react";
 import { Close, Ghost, Photos } from "@/components/icons";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
-import { Button, Missing, Round, Splash } from "@/components/ui";
+import { Button, Missing, nav, Round, Screen, Shared, Splash } from "@/components/ui";
 import { runAudit } from "@/lib/engine";
 import { plural } from "@/lib/format";
 import { FRAME, fromFile, fromSource, type LoadedImage } from "@/lib/image";
@@ -37,7 +37,7 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
       { label: "Comparing with last time" },
       { label: "Checking hidden spots" },
     ];
-    setStage({ k: "scan", image, steps });
+    startTransition(() => setStage({ k: "scan", image, steps }));
     const started = Date.now();
     const audit = await runAudit(head, image, space!.untracked);
     const occluded = audit.items.filter((i) => i.confidence === "occluded").length;
@@ -50,21 +50,27 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: values[i] })) });
     await wait(Math.max(0, 2400 - (Date.now() - started)));
     addAudit(space!.id, audit);
-    router.replace(`/spaces/${space!.id}/audits/${audit.id}`);
+    router.replace(`/spaces/${space!.id}/audits/${audit.id}`, { transitionTypes: nav("forward") });
   }
 
-  if (stage.k === "scan") return <Scanner src={stage.image.src} steps={stage.steps} title="Comparing…" />;
-
   return (
-    <Viewfinder
-      head={head}
-      close={`/spaces/${space.id}`}
-      shot={stage.k === "review" ? stage.image : null}
-      onShot={(image) => setStage({ k: "review", image })}
-      onRetake={() => setStage({ k: "aim" })}
-      onCompare={compare}
-      demo={space.demo}
-    />
+    <Screen>
+      <ViewTransition key={stage.k === "scan" ? "scan" : "camera"} enter="swap" exit="swap" default="none">
+        {stage.k === "scan" ? (
+          <Scanner src={stage.image.src} steps={stage.steps} title="Comparing…" />
+        ) : (
+          <Viewfinder
+            head={head}
+            close={`/spaces/${space.id}`}
+            shot={stage.k === "review" ? stage.image : null}
+            onShot={(image) => setStage({ k: "review", image })}
+            onRetake={() => setStage({ k: "aim" })}
+            onCompare={compare}
+            demo={space.demo}
+          />
+        )}
+      </ViewTransition>
+    </Screen>
   );
 }
 
@@ -129,10 +135,12 @@ function Viewfinder({
   return (
     <main className="flex h-dvh flex-col bg-black text-white">
       <header className="pt-safe flex items-center justify-between px-4 pb-3">
-        <Round href={close} aria-label="Close" variant="dark">
+        <Round href={close} nav="down" aria-label="Close" variant="dark">
           <Close />
         </Round>
-        <span className="text-[15px] font-semibold">{shot ? "Look good?" : "Line up with last time"}</span>
+        <span key={shot ? "shot" : "aim"} className="fade text-[15px] font-semibold">
+          {shot ? "Look good?" : "Line up with last time"}
+        </span>
         <Round
           aria-label="Outline guide"
           aria-pressed={ghostOn}
@@ -144,8 +152,9 @@ function Viewfinder({
       </header>
 
       <div className="flex min-h-0 flex-1 items-center justify-center pb-8" style={{ containerType: "size" }}>
+        <Shared name="shot">
         <div
-          className="relative touch-none select-none overflow-hidden rounded-[28px] bg-[#1c1c1b]"
+          className="relative touch-none select-none overflow-hidden rounded-[34px] bg-[#1c1c1b]"
           style={{ aspectRatio: FRAME, width: `min(100cqw - 16px, ${FRAME * 100}cqh)` }}
           onPointerDown={() => setPeek(true)}
           onPointerUp={() => setPeek(false)}
@@ -154,7 +163,7 @@ function Viewfinder({
         >
           {shot ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={shot.src} alt="" className="absolute inset-0 size-full object-cover" />
+            <img key={shot.src} src={shot.src} alt="" className="fade absolute inset-0 size-full object-cover" />
           ) : (
             <video
               ref={videoRef}
@@ -197,6 +206,7 @@ function Viewfinder({
             {peek ? "Last photo" : "Hold to see last photo"}
           </span>
         </div>
+        </Shared>
       </div>
 
       <div className="pb-safe flex h-[188px] shrink-0 flex-col justify-center px-5">
@@ -216,7 +226,7 @@ function Viewfinder({
                 type="button"
                 aria-label="Choose from photos"
                 onClick={() => fileRef.current?.click()}
-                className="grid size-13 place-items-center rounded-full bg-white/12 text-white transition active:scale-95"
+                className="grid size-13 place-items-center rounded-full bg-white/12 text-white transition-transform duration-200 active:scale-90 active:duration-75"
               >
                 <Photos />
               </button>
@@ -224,9 +234,9 @@ function Viewfinder({
                 type="button"
                 aria-label="Take photo"
                 onClick={capture}
-                className="grid size-[80px] place-items-center rounded-full border-[4px] border-white transition active:scale-95"
+                className="group grid size-[80px] place-items-center rounded-full border-[4px] border-white transition-transform duration-200 active:scale-95"
               >
-                <span className="size-[62px] rounded-full bg-white" />
+                <span className="size-[62px] rounded-full bg-white transition-transform duration-200 group-active:scale-90 group-active:duration-75" />
               </button>
               <span className="size-13" />
             </div>

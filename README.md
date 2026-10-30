@@ -25,7 +25,9 @@ All photos are center-cropped to 3:4 (`FRAME` in `lib/image.ts`) so the viewfind
 | New space (take photo → rename / switch off items → save) | `/spaces/new` |
 | Space (reference photo, items, untracked items, history; `?item=` opens an item) | `/spaces/[id]` |
 | Check (camera + outline guide) | `/spaces/[id]/check` |
-| Check report (pan-zoom photo, missing / new / moved, save as new reference) | `/spaces/[id]/audits/[auditId]` |
+| Check report (pan-zoom photo, missing / new / moved, save as new reference, delete) | `/spaces/[id]/audits/[auditId]` |
+
+Deleting a check that is the current reference photo rolls the reference back to the previous one (and drops any later checks compared against it). The first photo of a space can't be deleted on its own; deleting the space removes everything.
 
 In code, a reference photo is a `Commit`, its item list the ledger, and a check an `Audit`; the UI never shows these terms or their IDs.
 

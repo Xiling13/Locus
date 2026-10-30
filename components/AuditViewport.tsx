@@ -64,14 +64,14 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
       if (!z) return;
       if (!item) {
         setFocus(null);
-        z.resetTransform(500, "easeOut");
+        z.resetTransform(560, "easeInOutCubic");
         return;
       }
       const box = item.from && item.to ? union(item.from, item.to) : (item.to ?? item.from)!;
       const target = inflate(box, item.kind === "moved" ? 0.35 : 1.4);
       setFocus(target);
       requestAnimationFrame(() =>
-        z.zoomToElement("vp-focus", { maxScale: 4, animationTime: 650, animationType: "easeOut" }),
+        z.zoomToElement("vp-focus", { maxScale: 4, animationTime: 620, animationType: "easeInOutCubic" }),
       );
     },
   }));
@@ -86,7 +86,10 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
           minScale={1}
           maxScale={6}
           centerOnInit
-          doubleClick={{ mode: "toggle", step: 1.2 }}
+          doubleClick={{ mode: "toggle", step: 1.2, animationTime: 420, animationType: "easeInOutCubic" }}
+          zoomAnimation={{ animationTime: 320, animationType: "easeOutCubic" }}
+          autoAlignment={{ animationTime: 320, velocityAlignmentTime: 420, animationType: "easeOutCubic" }}
+          velocityAnimation={{ animationTime: 420, animationType: "easeOutCubic" }}
           onTransform={(_, s) => content.current?.style.setProperty("--k", String(1 / s.scale))}
         >
           <TransformComponent
@@ -162,16 +165,21 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
         </TransformWrapper>
       )}
 
-      <div className="glass absolute right-3 top-[max(env(safe-area-inset-top),12px)] flex rounded-full p-1">
+      <div className="glass absolute right-4 top-[max(env(safe-area-inset-top),12px)] grid grid-cols-2 rounded-full p-1 shadow-[0_2px_12px_rgb(0_0_0/0.08)]">
+        <span
+          className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-ink transition-transform duration-300 ease-[var(--ease-glide)]"
+          style={{ transform: showBase ? "translateX(100%)" : "none" }}
+        />
         {(["Now", "Before"] as const).map((l, i) => {
           const on = showBase === (i === 1);
           return (
             <button
               key={l}
               type="button"
+              aria-pressed={on}
               onClick={() => setShowBase(i === 1)}
-              className={`h-9 rounded-full px-4 text-[14px] font-semibold transition ${
-                on ? "bg-ink text-paper" : "text-soft"
+              className={`relative h-9 rounded-full px-4 text-[14px] font-semibold transition-colors duration-300 ${
+                on ? "text-paper" : "text-soft"
               }`}
             >
               {l}
@@ -182,10 +190,10 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
       <button
         type="button"
         aria-label="Reset view"
-        onClick={() => zoom.current?.resetTransform(500, "easeOut")}
-        className="glass absolute bottom-4 right-3 grid size-10 place-items-center rounded-full text-ink active:scale-95"
+        onClick={() => zoom.current?.resetTransform(560, "easeInOutCubic")}
+        className="glass absolute bottom-4 right-4 grid size-11 place-items-center rounded-full text-ink shadow-[0_2px_12px_rgb(0_0_0/0.08)] transition-transform duration-200 active:scale-90 active:duration-75"
       >
-        <Fit width={18} height={18} />
+        <Fit width={19} height={19} />
       </button>
     </div>
   );
