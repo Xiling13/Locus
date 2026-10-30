@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { Back, Close, Search } from "@/components/icons";
-import { nav, Pill, Round, Screen, Splash, Thumb, useIntro } from "@/components/ui";
+import { Dock, nav, Pill, Round, Screen, Splash, Thumb, useIntro } from "@/components/ui";
 import { plural } from "@/lib/format";
 import { headOf, missingOf, useHydrated, useLocus } from "@/lib/store";
 import type { LedgerObject, Space } from "@/lib/types";
@@ -71,32 +71,11 @@ function Results({
   const spaceHits = q ? spaces.filter((s) => s.name.toLowerCase().includes(q)) : [];
 
   return (
-    <main className="min-h-dvh bg-paper pb-12">
+    <main className="min-h-dvh bg-paper pb-36">
       <header className="pt-safe sticky top-0 z-10 flex items-center gap-2 bg-paper/85 px-4 pb-3 backdrop-blur-xl">
         <Round href="/" variant="card" aria-label="Back">
           <Back />
         </Round>
-        <label className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-card px-4 shadow-[0_1px_2px_rgb(0_0_0/0.06)] transition-shadow focus-within:ring-2 focus-within:ring-ink/10">
-          <Search width={19} height={19} className="shrink-0 text-mute" />
-          <input
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search keys, charger, tools…"
-            enterKeyHint="search"
-            className="h-full min-w-0 flex-1 bg-transparent text-[16px] font-medium outline-none placeholder:text-mute"
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear"
-              onClick={() => setQuery("")}
-              className="pop grid size-6 place-items-center rounded-full bg-sunk text-soft transition-transform active:scale-90"
-            >
-              <Close width={13} height={13} strokeWidth={2.6} />
-            </button>
-          )}
-        </label>
       </header>
 
       {!q ? (
@@ -163,6 +142,30 @@ function Results({
           )}
         </div>
       )}
+
+      <Dock>
+        <label className="flex h-15 w-full items-center gap-2.5 rounded-full bg-card px-5 shadow-[0_1px_2px_rgb(0_0_0/0.06)]">
+          <Search width={19} height={19} className="shrink-0 text-mute" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search keys, charger, tools…"
+            enterKeyHint="search"
+            className="h-full min-w-0 flex-1 bg-transparent text-[17px] font-medium outline-none placeholder:text-mute"
+          />
+          {query && (
+            <button
+              type="button"
+              aria-label="Clear"
+              onClick={() => setQuery("")}
+              className="pop grid size-6 place-items-center rounded-full bg-sunk text-soft transition-transform active:scale-90"
+            >
+              <Close width={13} height={13} strokeWidth={2.6} />
+            </button>
+          )}
+        </label>
+      </Dock>
     </main>
   );
 }
@@ -172,13 +175,16 @@ function Browse({ spaces }: { spaces: Space[] }) {
   if (!spaces.length)
     return <p className="px-6 pt-20 text-center text-[15px] text-soft">Add a space to start finding things.</p>;
   return (
-    <div className="space-y-8 px-4 pt-3">
+    <div className="space-y-8 pt-3">
       {spaces.map((s, si) => {
         const missing = new Set(missingOf(s).map((m) => m.objectId));
         const items = headOf(s).objects;
+        const overflow = items.length > 6;
+        const shown = overflow ? items.slice(0, 5) : items;
+        const extra = overflow ? items.length - 5 : 0;
         return (
           <section key={s.id} className={intro ? "rise" : ""} style={{ animationDelay: `${si * 60}ms` }}>
-            <div className="flex items-baseline justify-between px-1">
+            <div className="flex items-baseline justify-between px-5">
               <h2 className="text-[22px] font-bold tracking-[-0.03em]">{s.name}</h2>
               <Link
                 href={`/spaces/${s.id}`}
@@ -188,9 +194,9 @@ function Browse({ spaces }: { spaces: Space[] }) {
                 Open
               </Link>
             </div>
-            <ul className="mt-3 grid grid-cols-4 gap-x-3 gap-y-4">
-              {items.map((o) => (
-                <li key={o.id}>
+            <ul className="no-scrollbar mt-3 flex gap-3 overflow-x-auto px-4">
+              {shown.map((o) => (
+                <li key={o.id} className="w-[calc((100%-2.25rem)/4.33)] shrink-0">
                   <Link
                     href={`/spaces/${s.id}?item=${o.id}`}
                     transitionTypes={nav("forward")}
@@ -203,10 +209,25 @@ function Browse({ spaces }: { spaces: Space[] }) {
                         <span className="absolute right-1.5 top-1.5 size-3 rounded-full bg-miss ring-2 ring-white" />
                       )}
                     </span>
-                    <span className="mt-1.5 line-clamp-2 text-[12px] font-medium leading-tight">{o.label}</span>
+                    <span className="mt-1.5 block truncate text-[12px] font-medium leading-tight">{o.label}</span>
                   </Link>
                 </li>
               ))}
+              {extra > 0 && (
+                <li className="w-[calc((100%-2.25rem)/4.33)] shrink-0">
+                  <Link
+                    href={`/spaces/${s.id}`}
+                    transitionTypes={nav("forward")}
+                    className="block transition-transform duration-300 active:scale-95 active:duration-100"
+                  >
+                    <span className="grid aspect-square w-full place-items-center rounded-[18px] bg-card">
+                      <span className="px-1 text-center text-[12px] font-medium leading-tight text-soft">
+                        +{extra} more →
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              )}
             </ul>
           </section>
         );

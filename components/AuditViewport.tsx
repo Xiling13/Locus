@@ -165,7 +165,15 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
         </TransformWrapper>
       )}
 
-      <div className="glass absolute right-4 top-[max(env(safe-area-inset-top),12px)] grid grid-cols-2 rounded-full p-1 shadow-[0_2px_12px_rgb(0_0_0/0.08)]">
+      <button
+        type="button"
+        aria-label="Reset view"
+        onClick={() => zoom.current?.resetTransform(560, "easeInOutCubic")}
+        className="glass absolute right-4 top-[max(env(safe-area-inset-top),12px)] grid size-11 place-items-center rounded-full text-ink shadow-[0_2px_12px_rgb(0_0_0/0.08)] transition-transform duration-200 active:scale-90 active:duration-75"
+      >
+        <Fit width={19} height={19} />
+      </button>
+      <div className="glass absolute bottom-4 right-4 grid grid-cols-2 rounded-full p-1 shadow-[0_2px_12px_rgb(0_0_0/0.08)]">
         <span
           className="absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-ink transition-transform duration-300 ease-[var(--ease-glide)]"
           style={{ transform: showBase ? "translateX(100%)" : "none" }}
@@ -187,14 +195,6 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
           );
         })}
       </div>
-      <button
-        type="button"
-        aria-label="Reset view"
-        onClick={() => zoom.current?.resetTransform(560, "easeInOutCubic")}
-        className="glass absolute bottom-4 right-4 grid size-11 place-items-center rounded-full text-ink shadow-[0_2px_12px_rgb(0_0_0/0.08)] transition-transform duration-200 active:scale-90 active:duration-75"
-      >
-        <Fit width={19} height={19} />
-      </button>
     </div>
   );
 });
@@ -241,7 +241,6 @@ function Mark({
           opacity: found ? opacity * 0.35 : opacity,
           pointerEvents: opacity ? undefined : "none",
           outline: `${stroke} ${occluded ? "dashed" : "solid"} ${color}`,
-          boxShadow: `0 0 0 calc(4px * var(--k, 1)) rgb(21 21 20 / 0.22)`,
           zIndex: active ? 3 : 1,
         }}
       >

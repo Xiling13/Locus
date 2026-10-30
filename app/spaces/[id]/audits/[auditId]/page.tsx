@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState, type ReactNode } from "react";
 import { AuditViewport, type ViewportHandle } from "@/components/AuditViewport";
 import { Back, Check, Chevron } from "@/components/icons";
-import { Button, buttonClass, Chip, Missing, nav, Round, Screen, Shared, Sheet, Splash, Thumb, Toggle } from "@/components/ui";
+import { Button, Chip, Missing, nav, Round, Screen, Shared, Sheet, Splash, Thumb, Toggle } from "@/components/ui";
 import { recommit } from "@/lib/engine";
 import { ago, plural, stamp } from "@/lib/format";
 import { direction, region } from "@/lib/geometry";
@@ -214,10 +213,11 @@ function Report({
               </Button>
             </div>
           )}
-          <Link href={`/spaces/${space.id}`} transitionTypes={nav("back")} className={buttonClass("clear", "mt-2")}>
-            Back to {space.name}
-          </Link>
-          <Button tone="clear" className="text-miss-deep/80 active:text-miss-deep" onClick={() => setConfirm(true)}>
+          <Button
+            tone="clear"
+            className="mt-2 text-miss-deep/80 active:text-miss-deep"
+            onClick={() => setConfirm(true)}
+          >
             Delete this check
           </Button>
         </div>

@@ -17,8 +17,6 @@ type Stage =
   | { k: "scan"; image: LoadedImage; steps: ScanStep[] }
   | { k: "review"; commit: Commit };
 
-const DEMO = { src: "/demo/bench-base.jpg", width: 864, height: 1152 };
-
 export default function NewSpace() {
   const router = useRouter();
   const addSpace = useLocus((s) => s.addSpace);
@@ -220,21 +218,11 @@ export default function NewSpace() {
           <Photos width={20} height={20} />
           Photos
         </Button>
-        <Button className="flex-[1.5]" onClick={() => cameraRef.current?.click()}>
+        <Button className="flex-1" onClick={() => cameraRef.current?.click()}>
           <Camera width={20} height={20} />
           Take photo
         </Button>
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          if (!name) setName("Workbench");
-          analyze(DEMO);
-        }}
-        className="mt-2 h-12 text-[14px] font-medium text-soft transition-colors active:text-ink"
-      >
-        Try it with a sample photo
-      </button>
 
       <input
         ref={cameraRef}
