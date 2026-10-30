@@ -11,7 +11,7 @@ import { FRAME, fromFile, fromSource, type LoadedImage } from "@/lib/image";
 import { headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Commit } from "@/lib/types";
 
-const GHOST_LEVELS = [0.7, 0.35, 0];
+const GHOST_ON = 0.7;
 const DEMO_CURRENT = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
 
 type Stage =
@@ -88,7 +88,7 @@ function Viewfinder({
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [camera, setCamera] = useState<"pending" | "live" | "off">("pending");
-  const [ghost, setGhost] = useState(0);
+  const [ghostOn, setGhostOn] = useState(true);
   const [peek, setPeek] = useState(false);
 
   useEffect(() => {
@@ -124,7 +124,7 @@ function Viewfinder({
     onShot(await fromSource(v));
   }
 
-  const ghostOpacity = GHOST_LEVELS[ghost];
+  const ghostOpacity = ghostOn ? GHOST_ON : 0;
 
   return (
     <main className="flex h-dvh flex-col bg-black text-white">
@@ -135,15 +135,15 @@ function Viewfinder({
         <span className="text-[15px] font-semibold">{shot ? "Look good?" : "Line up with last time"}</span>
         <Round
           aria-label="Outline guide"
-          aria-pressed={!!ghostOpacity}
-          onClick={() => setGhost((g) => (g + 1) % GHOST_LEVELS.length)}
-          variant={ghostOpacity ? "card" : "dark"}
+          aria-pressed={ghostOn}
+          onClick={() => setGhostOn((on) => !on)}
+          variant={ghostOn ? "card" : "dark"}
         >
           <Ghost />
         </Round>
       </header>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
+      <div className="flex min-h-0 flex-1 items-center justify-center pb-8" style={{ containerType: "size" }}>
         <div
           className="relative touch-none select-none overflow-hidden rounded-[28px] bg-[#1c1c1b]"
           style={{ aspectRatio: FRAME, width: `min(100cqw - 16px, ${FRAME * 100}cqh)` }}
@@ -202,10 +202,10 @@ function Viewfinder({
       <div className="pb-safe flex h-[188px] shrink-0 flex-col justify-center px-5">
         {shot ? (
           <div className="flex gap-2">
-            <Button tone="smoke" className="flex-1" onClick={onRetake}>
+            <Button tone="smoke" className="min-w-0 flex-1" onClick={onRetake}>
               Retake
             </Button>
-            <Button tone="card" className="flex-[1.6]" onClick={() => onCompare(shot)}>
+            <Button tone="card" className="min-w-0 flex-1" onClick={() => onCompare(shot)}>
               Compare
             </Button>
           </div>

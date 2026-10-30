@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Chevron, Plus, Search } from "@/components/icons";
 import { Frame } from "@/components/Photo";
-import { Logo, Pill, Round, Splash } from "@/components/ui";
+import { Logo, Pill, Splash, buttonClass } from "@/components/ui";
 import { ago, plural } from "@/lib/format";
 import { ensureDemo, headOf, missingOf, openCheck, useHydrated, useLocus } from "@/lib/store";
 import type { Space } from "@/lib/types";
@@ -25,20 +25,12 @@ export default function Home() {
   const items = spaces.reduce((n, s) => n + headOf(s).objects.length, 0);
 
   return (
-    <main className="min-h-dvh bg-paper pb-12">
-      <header className="pt-safe flex items-center justify-between px-5">
+    <main className="flex h-dvh flex-col bg-paper">
+      <header className="pt-safe flex shrink-0 items-center px-5">
         <Logo />
-        <div className="flex gap-2">
-          <Round href="/search" variant="card" aria-label="Search">
-            <Search width={20} height={20} />
-          </Round>
-          <Round href="/spaces/new" variant="ink" aria-label="New space">
-            <Plus width={20} height={20} />
-          </Round>
-        </div>
       </header>
 
-      <h1 className="display rise mt-9 px-5 text-[52px]">
+      <h1 className="display rise mt-9 shrink-0 px-5 text-[52px]">
         {missing.length > 0 ? (
           <>
             {plural(missing.length, "thing")}
@@ -60,37 +52,52 @@ export default function Home() {
         )}
       </h1>
 
-      <Deck spaces={spaces} />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <Deck spaces={spaces} />
 
-      {missing.length > 0 && (
-        <section className="rise mt-10 px-5" style={{ animationDelay: "200ms" }}>
-          <h2 className="text-[20px] font-bold tracking-[-0.02em]">Needs a look</h2>
-          <ul className="mt-3 overflow-hidden rounded-[28px] bg-card">
-            {missing.map(({ space, item }) => (
-              <li key={`${space.id}-${item.id}`} className="border-b border-paper last:border-0">
-                <Link
-                  href={`/spaces/${space.id}/audits/${openCheck(space)!.id}?item=${item.id}`}
-                  className="flex items-center gap-3.5 p-3 pr-4 transition active:bg-paper"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.crop} alt="" className="size-12 rounded-[14px] object-cover" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[16px] font-semibold">{item.label}</span>
-                    <span className="block truncate text-[13px] text-soft">{space.name}</span>
-                  </span>
-                  <Pill tone="miss">{item.confidence === "occluded" ? "Maybe hidden" : "Missing"}</Pill>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+        {missing.length > 0 && (
+          <section className="rise mt-10 shrink-0 px-5" style={{ animationDelay: "200ms" }}>
+            <h2 className="text-[20px] font-bold tracking-[-0.02em]">Needs a look</h2>
+            <ul className="mt-3 overflow-hidden rounded-[28px] bg-card">
+              {missing.map(({ space, item }) => (
+                <li key={`${space.id}-${item.id}`} className="border-b border-paper last:border-0">
+                  <Link
+                    href={`/spaces/${space.id}/audits/${openCheck(space)!.id}?item=${item.id}`}
+                    className="flex items-center gap-3.5 p-3 pr-4 transition active:bg-paper"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.crop} alt="" className="size-12 rounded-[14px] object-cover" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[16px] font-semibold">{item.label}</span>
+                      <span className="block truncate text-[13px] text-soft">{space.name}</span>
+                    </span>
+                    <Pill tone="miss">{item.confidence === "occluded" ? "Maybe hidden" : "Missing"}</Pill>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+
+      <nav className="pb-safe flex shrink-0 gap-2 px-5 pt-6">
+        <Link href="/search" className={buttonClass("card", "flex-1")}>
+          <Search width={20} height={20} />
+          Search
+        </Link>
+        <Link href="/spaces/new" className={buttonClass("ink", "flex-1")}>
+          <Plus width={20} height={20} />
+          New space
+        </Link>
+      </nav>
     </main>
   );
 }
 
 function Deck({ spaces }: { spaces: Space[] }) {
   const rail = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; left: number } | null>(null);
+  const dragged = useRef(false);
   const [index, setIndex] = useState(0);
   const count = spaces.length + 1;
 
@@ -119,17 +126,59 @@ function Deck({ spaces }: { spaces: Space[] }) {
     return () => window.removeEventListener("resize", update);
   }, [update, count]);
 
+  useEffect(() => {
+    const el = rail.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   const go = (i: number) => {
     const card = rail.current?.children[i] as HTMLElement | undefined;
     card?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   };
 
   return (
-    <section className="mt-8">
+    <section className="mt-5 flex min-h-0 flex-1 flex-col justify-center pb-4">
       <div
         ref={rail}
         onScroll={update}
-        className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto px-[12%] pb-6 pt-2"
+        onPointerDown={(e) => {
+          if (e.pointerType === "touch") return;
+          const el = rail.current;
+          if (!el) return;
+          dragged.current = false;
+          drag.current = { x: e.clientX, left: el.scrollLeft };
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          const el = rail.current;
+          if (!d || !el) return;
+          const dx = e.clientX - d.x;
+          if (!dragged.current && Math.abs(dx) > 6) {
+            dragged.current = true;
+            el.setPointerCapture(e.pointerId);
+          }
+          if (dragged.current) el.scrollLeft = d.left - dx;
+        }}
+        onPointerUp={() => {
+          drag.current = null;
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+        }}
+        onClickCapture={(e) => {
+          if (!dragged.current) return;
+          e.preventDefault();
+          e.stopPropagation();
+          dragged.current = false;
+        }}
+        className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto px-[11%] pb-10 pt-2 active:cursor-grabbing"
       >
         {spaces.map((s, i) => (
           <DeckCard key={s.id} index={i}>
@@ -172,7 +221,7 @@ function Deck({ spaces }: { spaces: Space[] }) {
 function DeckCard({ index, children }: { index: number; children: ReactNode }) {
   return (
     <div
-      className="rise w-[76%] max-w-[360px] shrink-0 snap-center"
+      className="rise w-[78%] max-w-[360px] shrink-0 snap-center"
       style={{
         animationDelay: `${index * 70 + 60}ms`,
         transform: "rotate(calc(var(--d, 0) * 4deg)) scale(calc(1 - var(--a, 0) * 0.09))",
