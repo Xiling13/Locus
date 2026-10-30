@@ -1,148 +1,368 @@
 "use client";
 
 import Link from "next/link";
-import { use, useState } from "react";
-import { Aperture, Back } from "@/components/icons";
-import { PhotoBoxes } from "@/components/PhotoBoxes";
-import { buttonClass, Missing, Round, Splash } from "@/components/ui";
-import { ago, stamp } from "@/lib/format";
-import { headOf, useHydrated, useSpace } from "@/lib/store";
-import type { Audit } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import { use, useRef, useState } from "react";
+import { Aperture, Arrow, Back, Check, More, Pencil, Trash } from "@/components/icons";
+import { ScenePhoto, Spot } from "@/components/Photo";
+import {
+  Button,
+  buttonClass,
+  InlineEdit,
+  Missing,
+  Pill,
+  Round,
+  Sheet,
+  Splash,
+  type InlineEditHandle,
+} from "@/components/ui";
+import { ago, plural, stamp } from "@/lib/format";
+import { headOf, missingOf, openCheck, useHydrated, useLocus, useSpace } from "@/lib/store";
+import type { Audit, Commit, LedgerObject, Space } from "@/lib/types";
 
-export default function SpacePage({ params }: PageProps<"/spaces/[id]">) {
+export default function SpacePage({ params, searchParams }: PageProps<"/spaces/[id]">) {
   const { id } = use(params);
+  const { item } = use(searchParams);
   const hydrated = useHydrated();
   const space = useSpace(id);
-  const [active, setActive] = useState<string | null>(null);
 
   if (!hydrated) return <Splash />;
   if (!space) return <Missing />;
+  return <SpaceView space={space} initialItem={typeof item === "string" ? item : null} />;
+}
+
+function SpaceView({ space, initialItem }: { space: Space; initialItem: string | null }) {
+  const router = useRouter();
+  const renameSpace = useLocus((s) => s.renameSpace);
+  const removeSpace = useLocus((s) => s.removeSpace);
+  const title = useRef<InlineEditHandle>(null);
+  const [active, setActive] = useState<string | null>(initialItem);
+  const [menu, setMenu] = useState(false);
 
   const head = headOf(space);
+  const missing = missingOf(space);
+  const missingIds = new Set(missing.map((m) => m.objectId));
+  const open = openCheck(space);
   const focus = head.objects.find((o) => o.id === active);
 
   return (
-    <main className="pb-36">
-      <div className="relative">
-        <PhotoBoxes
-          src={head.image}
-          width={head.width}
-          height={head.height}
-          boxes={head.objects.map((o) => ({ id: o.id, bbox: o.bbox }))}
-          active={active}
-          onPick={(oid) => setActive((a) => (a === oid ? null : oid))}
-        />
-        <div className="pt-safe absolute left-4 top-0">
-          <Round href="/" aria-label="Back">
-            <Back />
-          </Round>
+    <main className="min-h-dvh bg-paper pb-36">
+      <div className="pt-safe relative px-2">
+        <div className="relative">
+          <ScenePhoto
+            src={head.image}
+            width={head.width}
+            height={head.height}
+            aspect={4 / 5}
+            className="rounded-[34px]"
+            pins={head.objects.map((o) => ({
+              id: o.id,
+              bbox: o.bbox,
+              label: o.label,
+              missing: missingIds.has(o.id),
+            }))}
+            active={active}
+            onPick={setActive}
+          />
+          <div className="absolute inset-x-3 top-3 flex justify-between">
+            <Round href="/" aria-label="Back">
+              <Back />
+            </Round>
+            <Round aria-label="More" onClick={() => setMenu(true)}>
+              <More />
+            </Round>
+          </div>
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-ink to-transparent" />
       </div>
 
-      <section className="relative -mt-14 px-5">
-        <h1 className="display text-[64px]">{space.name}</h1>
-        <div className="mono mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ash">
-          <span className="text-bone">HEAD {head.id}</span>
-          <span>{head.objects.length} items</span>
-          <span>{stamp(head.createdAt)}</span>
-        </div>
+      <section className="px-5 pt-6">
+        <InlineEdit
+          ref={title}
+          label="Space name"
+          value={space.name}
+          onSave={(v) => renameSpace(space.id, v)}
+          className="display text-[44px]"
+        />
+        <p className="mt-2 text-[15px] text-soft">
+          {plural(head.objects.length, "item")} · photo from {stamp(head.createdAt)}
+        </p>
+
+        {open && (
+          <Link
+            href={`/spaces/${space.id}/audits/${open.id}`}
+            className={`rise mt-6 flex items-center gap-4 rounded-[26px] p-4 pl-5 transition active:scale-[0.99] ${
+              missing.length ? "bg-miss-tint" : "bg-card"
+            }`}
+          >
+            <span className="min-w-0 flex-1">
+              <span className={`block text-[18px] font-bold ${missing.length ? "text-miss-deep" : ""}`}>
+                {missing.length ? `${plural(missing.length, "thing")} missing` : "Nothing missing"}
+              </span>
+              <span className="mt-0.5 block truncate text-[14px] text-soft">
+                {missing.length ? missing.map((m) => m.label).join(", ") : `Checked ${ago(open.createdAt)}`}
+              </span>
+            </span>
+            <span
+              className={`grid size-10 shrink-0 place-items-center rounded-full ${
+                missing.length ? "bg-miss text-ink" : "bg-paper"
+              }`}
+            >
+              <Arrow width={18} height={18} />
+            </span>
+          </Link>
+        )}
       </section>
 
-      <section className="mt-10">
-        <h2 className="display px-5 text-[26px]">Ledger</h2>
-        <div className="no-scrollbar mt-4 flex snap-x scroll-px-5 gap-3 overflow-x-auto px-5">
-          {head.objects.map((o) => {
-            const on = o.id === active;
-            return (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => {
-                  setActive(on ? null : o.id);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-                className="w-[104px] shrink-0 snap-start text-left"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={o.crop}
-                  alt=""
-                  className={`aspect-square w-full rounded-[18px] object-cover transition ${
-                    on ? "ring-2 ring-signal ring-offset-2 ring-offset-ink" : ""
-                  }`}
-                />
-                <span className="mt-2 block truncate text-[13px] font-medium">{o.label}</span>
+      <section className="mt-10 px-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[22px] font-bold tracking-[-0.03em]">Items</h2>
+          <span className="text-[14px] text-mute">{head.objects.length}</span>
+        </div>
+        <ul className="mt-4 grid grid-cols-3 gap-x-3 gap-y-4">
+          {head.objects.map((o, i) => (
+            <li key={o.id} className="rise" style={{ animationDelay: `${i * 30}ms` }}>
+              <button type="button" onClick={() => setActive(o.id)} className="block w-full text-left transition active:scale-95">
+                <span className="relative block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={o.crop} alt="" className="aspect-square w-full rounded-[22px] object-cover" />
+                  {missingIds.has(o.id) && (
+                    <span className="absolute right-2 top-2 size-3.5 rounded-full bg-miss ring-[3px] ring-white" />
+                  )}
+                </span>
+                <span className="mt-2 line-clamp-2 block text-[14px] font-medium leading-snug">{o.label}</span>
               </button>
-            );
-          })}
-        </div>
-        {focus && (
-          <p key={focus.id} className="rise mx-5 mt-5 rounded-[20px] bg-ink-2 p-5 text-[15px] leading-relaxed">
-            <span className="font-semibold">{focus.label}</span>
-            <span className="text-ash"> · {focus.hint}</span>
-          </p>
-        )}
-      </section>
-
-      <section className="mt-12 px-5">
-        <h2 className="display text-[26px]">Audits</h2>
-        {space.audits.length === 0 ? (
-          <p className="mt-4 text-[15px] leading-relaxed text-ash">
-            No audits yet. Snap a photo before you leave and when you’re back — Locus tells you what’s gone.
-          </p>
-        ) : (
-          <ul className="mt-4 space-y-2">
-            {space.audits.map((a) => (
-              <AuditRow key={a.id} audit={a} href={`/spaces/${space.id}/audits/${a.id}`} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="mt-12 px-5">
-        <h2 className="display text-[26px]">Commits</h2>
-        <ol className="mono mt-4 space-y-3 text-[11px]">
-          {space.commits.map((c) => (
-            <li key={c.id} className="flex items-baseline gap-3">
-              <span className={c.id === head.id ? "text-signal" : "text-ash"}>{c.id}</span>
-              <span className="min-w-0 flex-1 truncate text-bone">{c.message}</span>
-              <span className="text-ash">{stamp(c.createdAt)}</span>
             </li>
           ))}
-        </ol>
+        </ul>
       </section>
 
-      <div className="pb-safe fixed inset-x-0 bottom-0 mx-auto max-w-[480px] bg-gradient-to-t from-ink via-ink/90 to-transparent px-5 pt-10">
-        <Link href={`/spaces/${space.id}/check`} className={buttonClass()}>
+      <History space={space} head={head} />
+
+      <div className="pb-safe fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] bg-gradient-to-t from-paper via-paper/95 to-transparent px-5 pt-10">
+        <Link href={`/spaces/${space.id}/check`} className={buttonClass("ink")}>
           <Aperture />
-          Start audit
+          Check now
         </Link>
       </div>
+
+      {focus && (
+        <ItemSheet
+          key={focus.id}
+          space={space}
+          head={head}
+          item={focus}
+          missingCheck={missingIds.has(focus.id) ? open : undefined}
+          onClose={() => setActive(null)}
+        />
+      )}
+
+      {menu && (
+        <Sheet label="Space options" onClose={() => setMenu(false)}>
+          {(close) => (
+            <SpaceMenu
+              name={space.name}
+              onRename={() => {
+                close();
+                setTimeout(() => title.current?.edit(), 280);
+              }}
+              onDelete={() => {
+                removeSpace(space.id);
+                router.replace("/");
+              }}
+            />
+          )}
+        </Sheet>
+      )}
     </main>
   );
 }
 
-function AuditRow({ audit, href }: { audit: Audit; href: string }) {
-  const count = (k: string) => audit.items.filter((i) => i.kind === k).length;
-  const removed = count("removed");
+function SpaceMenu({ name, onRename, onDelete }: { name: string; onRename: () => void; onDelete: () => void }) {
+  const [confirm, setConfirm] = useState(false);
+  if (confirm)
+    return (
+      <div className="fade px-5 pb-3 pt-2">
+        <p className="display text-[30px]">Delete “{name}”?</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-soft">
+          Its photos, items and check history will be removed from this device.
+        </p>
+        <div className="mt-6 flex gap-2">
+          <Button tone="sunk" className="flex-1" onClick={() => setConfirm(false)}>
+            Keep
+          </Button>
+          <Button tone="miss" className="flex-1" onClick={onDelete}>
+            Delete
+          </Button>
+        </div>
+      </div>
+    );
   return (
-    <li>
-      <Link href={href} className="flex items-center gap-4 rounded-[20px] bg-ink-2 p-4 pr-5 transition active:scale-[0.99]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={audit.image} alt="" className="size-14 rounded-[14px] object-cover" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold">{ago(audit.createdAt)}</span>
-          <span className="mono mt-1 block text-[11px] text-ash">
-            {audit.committedAs ? `committed → ${audit.committedAs}` : `vs ${audit.baseCommitId}`}
+    <ul className="px-3 pb-2">
+      <li>
+        <button
+          type="button"
+          onClick={onRename}
+          className="flex h-14 w-full items-center gap-4 rounded-[18px] px-3 text-[17px] font-semibold active:bg-paper"
+        >
+          <Pencil width={20} height={20} />
+          Rename space
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          onClick={() => setConfirm(true)}
+          className="flex h-14 w-full items-center gap-4 rounded-[18px] px-3 text-[17px] font-semibold text-miss-deep active:bg-paper"
+        >
+          <Trash width={20} height={20} />
+          Delete space
+        </button>
+      </li>
+    </ul>
+  );
+}
+
+function ItemSheet({
+  space,
+  head,
+  item,
+  missingCheck,
+  onClose,
+}: {
+  space: Space;
+  head: Commit;
+  item: LedgerObject;
+  missingCheck?: Audit;
+  onClose: () => void;
+}) {
+  const renameItem = useLocus((s) => s.renameItem);
+  return (
+    <Sheet label={item.label} onClose={onClose}>
+      {(close) => (
+        <div className="px-4 pb-2">
+          <Spot
+            src={head.image}
+            width={head.width}
+            height={head.height}
+            bbox={item.bbox}
+            aspect={16 / 11}
+            tone={missingCheck ? "var(--color-miss)" : "white"}
+            className="rounded-[24px]"
+          />
+          <div className="px-1 pt-5">
+            {missingCheck && (
+              <Pill tone="miss" className="mb-3">
+                Missing in the last check
+              </Pill>
+            )}
+            <InlineEdit
+              label="Item name"
+              value={item.label}
+              onSave={(v) => renameItem(space.id, item.id, v)}
+              className="text-[28px] font-bold leading-tight tracking-[-0.035em]"
+            />
+            <dl className="mt-5 space-y-4 rounded-[22px] bg-paper p-4">
+              <div>
+                <dt className="text-[13px] font-medium text-mute">Where it lives</dt>
+                <dd className="mt-0.5 text-[16px] leading-snug">{item.hint}</dd>
+              </div>
+              <div>
+                <dt className="text-[13px] font-medium text-mute">Last seen</dt>
+                <dd className="mt-0.5 text-[16px]">
+                  {stamp(item.seenAt)} <span className="text-soft">· {ago(item.seenAt)}</span>
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <div className="mt-5 flex gap-2">
+            {missingCheck ? (
+              <>
+                <Button tone="sunk" className="flex-1" onClick={close}>
+                  Close
+                </Button>
+                <Link
+                  href={`/spaces/${space.id}/audits/${missingCheck.id}?item=rm-${item.id}`}
+                  className={buttonClass("ink", "flex-[1.4]")}
+                >
+                  Open check
+                </Link>
+              </>
+            ) : (
+              <Button tone="sunk" onClick={close}>
+                Done
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+function summary(a: Audit) {
+  const n = (k: string) => a.items.filter((i) => i.kind === k).length;
+  const parts = [
+    n("removed") && { tone: "bg-miss", text: `${n("removed")} missing` },
+    n("added") && { tone: "bg-new", text: `${n("added")} new` },
+    n("moved") && { tone: "bg-move", text: `${n("moved")} moved` },
+  ].filter(Boolean) as { tone: string; text: string }[];
+  return parts;
+}
+
+function History({ space, head }: { space: Space; head: Commit }) {
+  const first = space.commits[space.commits.length - 1];
+  return (
+    <section className="mt-12 px-5">
+      <h2 className="text-[22px] font-bold tracking-[-0.03em]">History</h2>
+      <ol className="mt-4 overflow-hidden rounded-[28px] bg-card">
+        {space.audits.map((a) => {
+          const parts = summary(a);
+          return (
+            <li key={a.id} className="border-b border-paper">
+              <Link
+                href={`/spaces/${space.id}/audits/${a.id}`}
+                className="flex items-center gap-3.5 p-3 pr-4 transition active:bg-paper"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.image} alt="" className="h-14 w-[42px] rounded-[12px] object-cover" />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-[16px] font-semibold">
+                    Checked {ago(a.createdAt)}
+                    {a.committedAs && <Check width={15} height={15} strokeWidth={2.6} className="text-soft" />}
+                  </span>
+                  <span className="mt-1 flex flex-wrap gap-x-3 text-[13px] text-soft">
+                    {parts.length ? (
+                      parts.map((p) => (
+                        <span key={p.text} className="flex items-center gap-1.5">
+                          <span className={`size-1.5 rounded-full ${p.tone}`} />
+                          {p.text}
+                        </span>
+                      ))
+                    ) : (
+                      <span>Everything in place</span>
+                    )}
+                  </span>
+                </span>
+                <Back width={18} height={18} className="rotate-180 text-mute" />
+              </Link>
+            </li>
+          );
+        })}
+        <li className="flex items-center gap-3.5 p-3 pr-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={first.image} alt="" className="h-14 w-[42px] rounded-[12px] object-cover" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[16px] font-semibold">Space created</span>
+            <span className="mt-1 block text-[13px] text-soft">
+              {stamp(first.createdAt)}
+              {head.id !== first.id && " · reference photo updated since"}
+            </span>
           </span>
-        </span>
-        <span className="mono flex gap-3 text-[13px] font-semibold">
-          <span className={removed ? "text-signal" : "text-ash"}>−{removed}</span>
-          <span className="text-mint">+{count("added")}</span>
-          <span className="text-bone">↗{count("moved")}</span>
-        </span>
-      </Link>
-    </li>
+        </li>
+      </ol>
+      {space.audits.length === 0 && (
+        <p className="mt-3 px-1 text-[14px] text-mute">No checks yet.</p>
+      )}
+    </section>
   );
 }

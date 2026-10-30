@@ -2,6 +2,9 @@ import type { BBox } from "./types";
 
 export type LoadedImage = { src: string; width: number; height: number };
 
+/** Every photo in the app is stored and shown at this width / height ratio. */
+export const FRAME = 3 / 4;
+
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -21,7 +24,7 @@ function canvas(w: number, h: number) {
   return { c, ctx };
 }
 
-/** Downscales large photos so they fit comfortably in IndexedDB. */
+/** Center-crops to FRAME and downscales so photos fit comfortably in IndexedDB. */
 export async function fromFile(file: Blob, maxSide = 2000): Promise<LoadedImage> {
   const url = URL.createObjectURL(file);
   try {
@@ -32,17 +35,18 @@ export async function fromFile(file: Blob, maxSide = 2000): Promise<LoadedImage>
 }
 
 export async function fromSource(
-  source: string | CanvasImageSource,
+  source: string | HTMLImageElement | HTMLVideoElement,
   maxSide = 2000,
 ): Promise<LoadedImage> {
   const img = typeof source === "string" ? await loadImage(source) : source;
-  const sw = "videoWidth" in img ? img.videoWidth : (img as HTMLImageElement).naturalWidth;
-  const sh = "videoHeight" in img ? img.videoHeight : (img as HTMLImageElement).naturalHeight;
+  const vw = "videoWidth" in img ? img.videoWidth : img.naturalWidth;
+  const vh = "videoHeight" in img ? img.videoHeight : img.naturalHeight;
+  const [sw, sh] = vw / vh > FRAME ? [vh * FRAME, vh] : [vw, vw / FRAME];
   const k = Math.min(1, maxSide / Math.max(sw, sh));
   const w = Math.round(sw * k);
   const h = Math.round(sh * k);
   const { c, ctx } = canvas(w, h);
-  ctx.drawImage(img, 0, 0, w, h);
+  ctx.drawImage(img, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, w, h);
   return { src: c.toDataURL("image/jpeg", 0.86), width: w, height: h };
 }
 

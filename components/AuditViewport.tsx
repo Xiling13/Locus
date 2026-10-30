@@ -19,7 +19,11 @@ const pct = (b: BBox) => ({
   height: `${b.h * 100}%`,
 });
 
-const COLOR = { removed: "var(--color-signal)", added: "var(--color-mint)", moved: "var(--color-bone)" };
+export const KIND_COLOR = {
+  removed: "var(--color-miss)",
+  added: "var(--color-new)",
+  moved: "var(--color-move)",
+};
 
 type Props = {
   current: string;
@@ -47,7 +51,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
     const ro = new ResizeObserver(([e]) => {
       const W = e.contentRect.width;
       const H = e.contentRect.height;
-      const w = Math.min(W, H * aspect);
+      const w = Math.max(W, H * aspect);
       setSize({ w, h: w / aspect });
     });
     ro.observe(el);
@@ -72,10 +76,10 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
     },
   }));
 
-  const dim = (id: string) => (selected && selected !== id ? 0.28 : 1);
+  const dim = (id: string) => (selected && selected !== id ? 0 : 1);
 
   return (
-    <div ref={wrap} className="relative size-full overflow-hidden bg-black">
+    <div ref={wrap} className="relative size-full overflow-hidden bg-sunk">
       {size && (
         <TransformWrapper
           ref={zoom}
@@ -119,7 +123,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
                           x2={bx * 100}
                           y2={by * 100}
                           stroke="var(--color-ink)"
-                          strokeOpacity={0.5}
+                          strokeOpacity={0.35}
                           strokeWidth={5}
                           vectorEffect="non-scaling-stroke"
                           strokeLinecap="round"
@@ -129,13 +133,12 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
                           y1={ay * 100}
                           x2={bx * 100}
                           y2={by * 100}
-                          stroke="var(--color-bone)"
-                          strokeWidth={2}
+                          stroke="var(--color-move)"
+                          strokeWidth={2.5}
                           strokeDasharray="1 6"
                           strokeLinecap="round"
                           vectorEffect="non-scaling-stroke"
                         />
-                        <circle cx={ax * 100} cy={ay * 100} r={0.9} fill="var(--color-bone)" />
                       </g>
                     );
                   })}
@@ -159,16 +162,16 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
         </TransformWrapper>
       )}
 
-      <div className="absolute right-3 top-3 flex rounded-full bg-ink/60 p-1 backdrop-blur-md">
-        {(["Now", "Base"] as const).map((l, i) => {
+      <div className="glass absolute right-3 top-[max(env(safe-area-inset-top),12px)] flex rounded-full p-1">
+        {(["Now", "Before"] as const).map((l, i) => {
           const on = showBase === (i === 1);
           return (
             <button
               key={l}
               type="button"
               onClick={() => setShowBase(i === 1)}
-              className={`h-8 rounded-full px-3.5 text-[13px] font-semibold transition ${
-                on ? "bg-bone text-ink" : "text-bone/70"
+              className={`h-9 rounded-full px-4 text-[14px] font-semibold transition ${
+                on ? "bg-ink text-paper" : "text-soft"
               }`}
             >
               {l}
@@ -180,7 +183,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
         type="button"
         aria-label="Reset view"
         onClick={() => zoom.current?.resetTransform(500, "easeOut")}
-        className="absolute bottom-3 right-3 grid size-10 place-items-center rounded-full bg-ink/60 text-bone backdrop-blur-md active:scale-95"
+        className="glass absolute bottom-4 right-3 grid size-10 place-items-center rounded-full text-ink active:scale-95"
       >
         <Fit width={18} height={18} />
       </button>
@@ -203,53 +206,56 @@ function Mark({
   active: boolean;
   onClick: () => void;
 }) {
-  const color = COLOR[item.kind];
+  const color = KIND_COLOR[item.kind];
   const occluded = item.confidence === "occluded";
   const found = item.resolution === "found";
   const box = (item.kind === "removed" ? item.from : item.to)!;
-  const stroke = `calc(2px * var(--k, 1))`;
+  const stroke = `calc(2.5px * var(--k, 1))`;
 
   return (
     <>
       {item.kind === "moved" && item.from && (
         <div
-          className="pointer-events-none absolute rounded-[4px] transition-opacity duration-300"
+          className="pointer-events-none absolute rounded-[6px] transition-opacity duration-300"
           style={{
             ...pct(item.from),
-            opacity: opacity * 0.7,
-            outline: `${stroke} dashed var(--color-bone)`,
+            opacity: opacity * 0.8,
+            outline: `${stroke} dashed var(--color-move)`,
           }}
         />
       )}
       <button
         type="button"
         onClick={onClick}
-        className="draw absolute rounded-[4px] transition-opacity duration-300"
+        className="draw absolute rounded-[6px] transition-opacity duration-300"
         style={{
           ...pct(box),
           opacity: found ? opacity * 0.35 : opacity,
+          pointerEvents: opacity ? undefined : "none",
           outline: `${stroke} ${occluded ? "dashed" : "solid"} ${color}`,
-          boxShadow: `0 0 0 calc(4px * var(--k, 1)) rgb(11 12 10 / 0.28)`,
+          boxShadow: `0 0 0 calc(4px * var(--k, 1)) rgb(21 21 20 / 0.22)`,
           zIndex: active ? 3 : 1,
         }}
       >
         {item.kind === "removed" && !showBase && (
           <span
-            className="absolute inset-0 rounded-[4px] saturate-[0.6]"
+            className="absolute inset-0 rounded-[6px] saturate-[0.5]"
             style={{
               backgroundImage: `url(${base})`,
               backgroundSize: `${100 / box.w}% ${100 / box.h}%`,
               backgroundPosition: `${(box.x / (1 - box.w)) * 100}% ${(box.y / (1 - box.h)) * 100}%`,
-              opacity: occluded ? 0.35 : 0.8,
+              opacity: occluded ? 0.35 : 0.75,
             }}
           />
         )}
-        {occluded && <span className="hatch absolute inset-0 rounded-[4px] opacity-60" />}
-        {item.kind === "added" && <span className="absolute inset-0 bg-mint/10" />}
+        {occluded && <span className="hatch absolute inset-0 rounded-[6px] opacity-70" />}
+        {item.kind === "added" && <span className="absolute inset-0 rounded-[6px] bg-new/15" />}
         {active && (
           <span
-            className="mono absolute bottom-full left-0 origin-bottom-left whitespace-nowrap rounded-[5px] px-1.5 py-0.5 text-[10px] font-semibold text-ink"
-            style={{ background: color, transform: "translateY(-4px) scale(var(--k, 1))" }}
+            className={`absolute bottom-full left-0 origin-bottom-left whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ${
+              item.kind === "added" ? "text-white" : "text-ink"
+            }`}
+            style={{ background: color, transform: "translateY(-5px) scale(var(--k, 1))" }}
           >
             {item.label}
           </span>

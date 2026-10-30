@@ -11,17 +11,22 @@ pnpm install
 pnpm dev
 ```
 
-A sample "Workbench" space is created on first launch. Open it, tap **Start audit**, then **Use sample audit photo** to see a full diff.
+A sample "Workbench" space is created on first launch. Open it, tap **Check now**, then **Use sample photo** to see a full comparison.
+
+All photos are center-cropped to 3:4 (`FRAME` in `lib/image.ts`) so the viewfinder, reference photo and check report always line up.
 
 ## Flow
 
 | Screen | Route |
 | --- | --- |
-| Spaces | `/` |
-| New space (shoot baseline → review detections → commit) | `/spaces/new` |
-| Space (baseline, ledger, audits, commits) | `/spaces/[id]` |
-| Audit capture (camera + ghost overlay) | `/spaces/[id]/check` |
-| Audit report (pan-zoom canvas, inspector, last seen, recommit) | `/spaces/[id]/audits/[auditId]` |
+| Home (swipeable space cards, items that need a look) | `/` |
+| Search (every item across spaces) | `/search` |
+| New space (take photo → rename / switch off items → save) | `/spaces/new` |
+| Space (reference photo, items, history; `?item=` opens an item) | `/spaces/[id]` |
+| Check (camera + outline guide) | `/spaces/[id]/check` |
+| Check report (pan-zoom photo, missing / new / moved, save as new reference) | `/spaces/[id]/audits/[auditId]` |
+
+In code, a reference photo is a `Commit`, its item list the ledger, and a check an `Audit`; the UI never shows these terms or their IDs.
 
 ## Plugging in real vision
 

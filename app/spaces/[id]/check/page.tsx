@@ -6,11 +6,12 @@ import { Close, Ghost, Photos } from "@/components/icons";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
 import { Button, Missing, Round, Splash } from "@/components/ui";
 import { runAudit } from "@/lib/engine";
-import { fromFile, type LoadedImage } from "@/lib/image";
+import { plural } from "@/lib/format";
+import { FRAME, fromFile, fromSource, type LoadedImage } from "@/lib/image";
 import { headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Commit } from "@/lib/types";
 
-const GHOST_LEVELS = [0.65, 0.3, 0];
+const GHOST_LEVELS = [0.7, 0.35, 0];
 const DEMO_CURRENT = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
 
 type Stage =
@@ -32,29 +33,27 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
 
   async function compare(image: LoadedImage) {
     const steps: ScanStep[] = [
-      { label: "Segment" },
-      { label: `Match ${head.id}` },
-      { label: "Occlusion" },
-      { label: "Diff" },
+      { label: "Spotting your things" },
+      { label: "Comparing with last time" },
+      { label: "Checking hidden spots" },
     ];
     setStage({ k: "scan", image, steps });
     const started = Date.now();
     const audit = await runAudit(head, image);
-    const n = (k: string) => audit.items.filter((i) => i.kind === k).length;
     const occluded = audit.items.filter((i) => i.confidence === "occluded").length;
+    const changes = audit.items.length;
     const values = [
-      `${audit.detections.length} objects`,
-      `${audit.unchanged + n("moved")} / ${head.objects.length}`,
-      occluded ? `${occluded} to review` : "clear",
-      `${audit.items.length} changes`,
+      plural(audit.detections.length, "item"),
+      changes ? plural(changes, "change") : "no changes",
+      occluded ? `${occluded} to look at` : "all clear",
     ];
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: values[i] })) });
-    await wait(Math.max(0, 2800 - (Date.now() - started)));
+    await wait(Math.max(0, 2400 - (Date.now() - started)));
     addAudit(space!.id, audit);
     router.replace(`/spaces/${space!.id}/audits/${audit.id}`);
   }
 
-  if (stage.k === "scan") return <Scanner src={stage.image.src} steps={stage.steps} title="Diffing" />;
+  if (stage.k === "scan") return <Scanner src={stage.image.src} steps={stage.steps} title="Comparing…" />;
 
   return (
     <Viewfinder
@@ -91,7 +90,6 @@ function Viewfinder({
   const [camera, setCamera] = useState<"pending" | "live" | "off">("pending");
   const [ghost, setGhost] = useState(0);
   const [peek, setPeek] = useState(false);
-  const aspect = head.width / head.height;
 
   useEffect(() => {
     if (shot) return;
@@ -120,130 +118,125 @@ function Viewfinder({
     };
   }, [shot]);
 
-  function capture() {
+  async function capture() {
     const v = videoRef.current;
     if (!v || camera !== "live") return fileRef.current?.click();
-    const vw = v.videoWidth;
-    const vh = v.videoHeight;
-    const [sw, sh] = vw / vh > aspect ? [vh * aspect, vh] : [vw, vw / aspect];
-    const scale = Math.min(1, 2000 / Math.max(sw, sh));
-    const c = document.createElement("canvas");
-    c.width = Math.round(sw * scale);
-    c.height = Math.round(sh * scale);
-    c.getContext("2d")!.drawImage(v, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, c.width, c.height);
-    onShot({ src: c.toDataURL("image/jpeg", 0.86), width: c.width, height: c.height });
+    onShot(await fromSource(v));
   }
 
   const ghostOpacity = GHOST_LEVELS[ghost];
 
   return (
-    <main className="flex min-h-dvh flex-col bg-black">
+    <main className="flex h-dvh flex-col bg-black text-white">
       <header className="pt-safe flex items-center justify-between px-4 pb-3">
-        <Round href={close} aria-label="Close" variant="flat">
+        <Round href={close} aria-label="Close" variant="dark">
           <Close />
         </Round>
-        <span className="mono text-[11px] text-ash">
-          {shot ? "Check framing" : "Align to"} <span className="text-bone">{head.id}</span>
-        </span>
+        <span className="text-[15px] font-semibold">{shot ? "Look good?" : "Line up with last time"}</span>
         <Round
-          aria-label="Ghost overlay"
+          aria-label="Outline guide"
+          aria-pressed={!!ghostOpacity}
           onClick={() => setGhost((g) => (g + 1) % GHOST_LEVELS.length)}
-          variant={ghostOpacity ? "solid" : "flat"}
+          variant={ghostOpacity ? "card" : "dark"}
         >
           <Ghost />
         </Round>
       </header>
 
-      <div
-        className="relative w-full touch-none select-none overflow-hidden bg-ink"
-        style={{ aspectRatio: `${aspect}` }}
-        onPointerDown={() => setPeek(true)}
-        onPointerUp={() => setPeek(false)}
-        onPointerLeave={() => setPeek(false)}
-        onContextMenu={(e) => e.preventDefault()}
-      >
-        {shot ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={shot.src} alt="" className="absolute inset-0 size-full object-cover" />
-        ) : (
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
-              camera === "live" ? "opacity-100" : "opacity-0"
-            }`}
-          />
-        )}
-
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={head.image}
-          alt=""
-          className="absolute inset-0 size-full object-cover transition-opacity duration-200"
-          style={{ opacity: peek ? 0.55 : !shot && camera === "off" ? 0.12 : 0 }}
-        />
+      <div className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
         <div
-          className="pointer-events-none absolute inset-0 transition-opacity duration-300"
-          style={{
-            opacity: ghostOpacity,
-            backgroundColor: "var(--color-bone)",
-            maskImage: `url(${head.edges})`,
-            maskSize: "100% 100%",
-            WebkitMaskImage: `url(${head.edges})`,
-            WebkitMaskSize: "100% 100%",
-          }}
-        />
+          className="relative touch-none select-none overflow-hidden rounded-[28px] bg-[#1c1c1b]"
+          style={{ aspectRatio: FRAME, width: `min(100cqw - 16px, ${FRAME * 100}cqh)` }}
+          onPointerDown={() => setPeek(true)}
+          onPointerUp={() => setPeek(false)}
+          onPointerLeave={() => setPeek(false)}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {shot ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={shot.src} alt="" className="absolute inset-0 size-full object-cover" />
+          ) : (
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
+                camera === "live" ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          )}
 
-        {!shot && camera === "off" && (
-          <div className="absolute inset-x-0 bottom-0 p-6">
-            <p className="display text-[30px]">Camera is off</p>
-            <p className="mt-2 text-[14px] text-bone/70">Pick a photo taken from the same spot instead.</p>
-          </div>
-        )}
-        <span className="mono pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-ink/55 px-3 py-1.5 text-[10px] text-bone/80 backdrop-blur-md">
-          {peek ? "Baseline" : "Hold to peek baseline"}
-        </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={head.image}
+            alt=""
+            className="absolute inset-0 size-full object-cover transition-opacity duration-200"
+            style={{ opacity: peek ? 0.6 : !shot && camera === "off" ? 0.15 : 0 }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 transition-opacity duration-300"
+            style={{
+              opacity: ghostOpacity,
+              backgroundColor: "white",
+              maskImage: `url(${head.edges})`,
+              maskSize: "cover",
+              maskPosition: "center",
+              WebkitMaskImage: `url(${head.edges})`,
+              WebkitMaskSize: "cover",
+              WebkitMaskPosition: "center",
+            }}
+          />
+
+          {!shot && camera === "off" && (
+            <div className="absolute inset-x-0 bottom-0 p-6">
+              <p className="text-[22px] font-bold tracking-[-0.03em]">Camera is off</p>
+              <p className="mt-1 text-[14px] text-white/70">Pick a photo taken from the same spot instead.</p>
+            </div>
+          )}
+          <span className="glass-dark pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/90">
+            {peek ? "Last photo" : "Hold to see last photo"}
+          </span>
+        </div>
       </div>
 
-      <div className="pb-safe flex flex-1 flex-col justify-end px-5 pt-6">
+      <div className="pb-safe flex h-[188px] shrink-0 flex-col justify-center px-5">
         {shot ? (
-          <div className="flex gap-3">
-            <Button tone="ink" className="flex-1" onClick={onRetake}>
+          <div className="flex gap-2">
+            <Button tone="smoke" className="flex-1" onClick={onRetake}>
               Retake
             </Button>
-            <Button className="flex-[1.6]" onClick={() => onCompare(shot)}>
-              Run diff
+            <Button tone="card" className="flex-[1.6]" onClick={() => onCompare(shot)}>
+              Compare
             </Button>
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between px-3">
+            <div className="flex items-center justify-between px-4">
               <button
                 type="button"
-                aria-label="Choose from library"
+                aria-label="Choose from photos"
                 onClick={() => fileRef.current?.click()}
-                className="grid size-14 place-items-center rounded-[18px] bg-ink-2 text-bone transition active:scale-95"
+                className="grid size-13 place-items-center rounded-full bg-white/12 text-white transition active:scale-95"
               >
                 <Photos />
               </button>
               <button
                 type="button"
-                aria-label="Capture"
+                aria-label="Take photo"
                 onClick={capture}
-                className="grid size-[84px] place-items-center rounded-full bg-bone transition active:scale-95"
+                className="grid size-[80px] place-items-center rounded-full border-[4px] border-white transition active:scale-95"
               >
-                <span className="size-[68px] rounded-full bg-bone ring-[3px] ring-ink" />
+                <span className="size-[62px] rounded-full bg-white" />
               </button>
-              <span className="size-14" />
+              <span className="size-13" />
             </div>
             {demo && (
               <button
                 type="button"
                 onClick={() => onShot(DEMO_CURRENT)}
-                className="mt-5 h-11 text-[14px] text-ash transition active:text-bone"
+                className="mt-4 h-10 text-[14px] font-medium text-white/55 transition active:text-white"
               >
-                Use sample audit photo
+                Use sample photo
               </button>
             )}
           </>

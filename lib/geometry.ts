@@ -6,10 +6,10 @@ export function region(b: BBox) {
   const [cx, cy] = center(b);
   const v = cy < 0.34 ? "top" : cy > 0.66 ? "bottom" : "";
   const h = cx < 0.34 ? "left" : cx > 0.66 ? "right" : "";
-  if (!v && !h) return "center of frame";
-  if (!v) return `${h} edge of frame`;
-  if (!h) return `${v} of frame`;
-  return `${v}-${h} of frame`;
+  if (!v && !h) return "middle of the photo";
+  if (!v) return `${h} side of the photo`;
+  if (!h) return `${v} of the photo`;
+  return `${v}-${h} of the photo`;
 }
 
 export function direction(from: BBox, to: BBox) {

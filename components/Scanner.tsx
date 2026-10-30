@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FRAME } from "@/lib/image";
+import { Check } from "./icons";
 
 export type ScanStep = { label: string; value?: string };
 
 /**
- * Full-bleed photo with a sweeping scan line and a log of pipeline steps.
+ * Photo with a sweeping scan band and a short list of steps.
  * Steps tick in on a timer; values fill once the real work resolves.
  */
 export function Scanner({ src, steps, title }: { src: string; steps: ScanStep[]; title: string }) {
@@ -16,35 +18,42 @@ export function Scanner({ src, steps, title }: { src: string; steps: ScanStep[];
   }, [steps.length]);
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-ink">
-      <div className="relative overflow-hidden">
+    <main className="pt-safe flex min-h-dvh flex-col bg-paper px-5 pb-safe">
+      <div
+        className="relative mx-auto mt-2 overflow-hidden rounded-[32px] bg-sunk"
+        style={{ aspectRatio: FRAME, width: `min(100%, calc(56dvh * ${FRAME}))` }}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" className="block w-full opacity-60 grayscale-[0.4]" />
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div
-            className="absolute inset-x-0 h-1/3"
-            style={{
-              background:
-                "linear-gradient(to bottom, transparent, color-mix(in oklab, var(--color-signal) 28%, transparent) 92%, var(--color-signal) 100%)",
-              animation: "scan 1.8s cubic-bezier(.6,0,.4,1) infinite",
-            }}
-          />
-        </div>
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-ink to-transparent" />
+        <img src={src} alt="" className="absolute inset-0 size-full object-cover saturate-[0.7]" />
+        <div className="absolute inset-0 bg-paper/25" />
+        <div
+          className="absolute inset-x-0 h-1/3"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent, color-mix(in oklab, var(--color-new) 30%, transparent) 85%, var(--color-new) 100%)",
+            animation: "scan 2s cubic-bezier(.6,0,.4,1) infinite",
+          }}
+        />
       </div>
-      <div className="-mt-16 relative flex-1 px-6 pb-safe">
-        <h1 className="display text-[44px] text-bone">{title}</h1>
-        <ol className="mono mt-6 space-y-3 text-[12px]">
-          {steps.slice(0, shown).map((s, i) => (
-            <li key={s.label} className="rise flex items-baseline gap-3">
-              <span className="text-ash">{String(i + 1).padStart(2, "0")}</span>
-              <span className="text-bone">{s.label}</span>
-              <span className="ml-auto text-signal">{s.value ?? "···"}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </div>
+
+      <h1 className="display mt-8 text-[40px]">{title}</h1>
+      <ol className="mt-5 space-y-1">
+        {steps.slice(0, shown).map((s) => (
+          <li key={s.label} className="rise flex h-9 items-center gap-3 text-[16px]">
+            <span
+              className={`grid size-5 place-items-center rounded-full transition-colors ${
+                s.value ? "bg-ink text-paper" : "border-2 border-line border-t-ink"
+              }`}
+              style={s.value ? undefined : { animation: "spin 0.8s linear infinite" }}
+            >
+              {s.value && <Check width={12} height={12} strokeWidth={3} />}
+            </span>
+            <span className="font-medium">{s.label}</span>
+            <span className="ml-auto text-soft">{s.value}</span>
+          </li>
+        ))}
+      </ol>
+    </main>
   );
 }
 

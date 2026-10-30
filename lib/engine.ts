@@ -42,6 +42,7 @@ export async function buildCommit(
     objects: detections.map((d) => ({
       ...d,
       id: prev.get(d.signature)?.id ?? d.id,
+      label: prev.get(d.signature)?.label ?? d.label,
       crop: cropOf(img, d.bbox),
       hint: vision.describePlacement(d, detections),
       seenAt: now,

@@ -2,12 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Aperture, Back } from "@/components/icons";
-import { PhotoBoxes } from "@/components/PhotoBoxes";
+import { Back, Camera, Photos } from "@/components/icons";
+import { ScenePhoto } from "@/components/Photo";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
-import { Button, Round } from "@/components/ui";
+import { Button, InlineEdit, Round } from "@/components/ui";
 import { buildCommit, detect, shortId } from "@/lib/engine";
-import { fromFile, type LoadedImage } from "@/lib/image";
+import { plural } from "@/lib/format";
+import { FRAME, fromFile, type LoadedImage } from "@/lib/image";
 import { useLocus } from "@/lib/store";
 import type { Commit } from "@/lib/types";
 
@@ -24,42 +25,43 @@ export default function NewSpace() {
   const [name, setName] = useState("");
   const [stage, setStage] = useState<Stage>({ k: "capture" });
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [labels, setLabels] = useState<Record<string, string>>({});
   const [active, setActive] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
 
   async function analyze(image: LoadedImage) {
     const steps: ScanStep[] = [
-      { label: "Segment" },
-      { label: "Label" },
-      { label: "Map layout" },
-      { label: "Write ledger" },
+      { label: "Spotting your things" },
+      { label: "Naming them" },
+      { label: "Remembering where they go" },
     ];
     setStage({ k: "scan", image, steps });
     const started = Date.now();
     const detections = await detect(image);
     const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
-    const n = String(commit.objects.length);
-    const filled = [`${n} objects`, `${n} labels`, "relative", commit.id].map((value, i) => ({
-      ...steps[i],
-      value,
-    }));
-    setStage({ k: "scan", image, steps: filled });
-    await wait(Math.max(0, 2600 - (Date.now() - started)));
+    const n = plural(commit.objects.length, "item");
+    setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: [n, "done", "done"][i] })) });
+    await wait(Math.max(0, 2400 - (Date.now() - started)));
     setStage({ k: "review", commit });
   }
 
   async function onFile(f?: File) {
-    if (!f) return;
-    analyze(await fromFile(f));
+    if (f) analyze(await fromFile(f));
   }
 
-  function commit() {
+  function save() {
     if (stage.k !== "review") return;
-    const c = { ...stage.commit, objects: stage.commit.objects.filter((o) => !excluded.has(o.id)) };
+    const c = {
+      ...stage.commit,
+      objects: stage.commit.objects
+        .filter((o) => !excluded.has(o.id))
+        .map((o) => ({ ...o, label: labels[o.id] ?? o.label })),
+    };
     const id = shortId();
     addSpace({
       id,
-      name: name.trim() || "Untitled space",
+      name: name.trim() || "My space",
       createdAt: c.createdAt,
       headId: c.id,
       commits: [c],
@@ -68,74 +70,104 @@ export default function NewSpace() {
     router.replace(`/spaces/${id}`);
   }
 
-  if (stage.k === "scan") return <Scanner src={stage.image.src} steps={stage.steps} title="Committing" />;
+  if (stage.k === "scan")
+    return <Scanner src={stage.image.src} steps={stage.steps} title="Getting to know your space" />;
 
   if (stage.k === "review") {
     const objs = stage.commit.objects;
     const kept = objs.length - excluded.size;
     return (
-      <main className="pb-40">
-        <div className="relative">
-          <PhotoBoxes
+      <main className="min-h-dvh bg-paper pb-36">
+        <div className="pt-safe relative px-2">
+          <ScenePhoto
             src={stage.commit.image}
             width={stage.commit.width}
             height={stage.commit.height}
-            boxes={objs.map((o) => ({ id: o.id, bbox: o.bbox, off: excluded.has(o.id) }))}
+            aspect={4 / 5}
+            className="rounded-[34px]"
+            pins={objs.map((o) => ({
+              id: o.id,
+              bbox: o.bbox,
+              label: labels[o.id] ?? o.label,
+              off: excluded.has(o.id),
+            }))}
             active={active}
-            onPick={setActive}
+            onPick={(id) => {
+              setActive((a) => (a === id ? null : id));
+              document.getElementById(`obj-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
           />
-          <div className="pt-safe absolute left-4 top-0">
+          <div className="absolute left-5 top-3">
             <Round aria-label="Retake" onClick={() => setStage({ k: "capture" })}>
               <Back />
             </Round>
           </div>
         </div>
-        <section className="px-5 pt-8">
-          <h1 className="display text-[44px]">
-            Found {objs.length} items
-          </h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-ash">
-            Tap to drop anything you don’t want tracked — like the mug you’ll clear away later.
+
+        <section className="px-5 pt-6">
+          <InlineEdit
+            label="Space name"
+            value={name.trim() || "My space"}
+            onSave={setName}
+            className="display text-[40px]"
+          />
+          <p className="mt-3 text-[15px] leading-relaxed text-soft">
+            Found {plural(objs.length, "item")}. Tap a name to fix it, and switch off anything you don’t need to keep
+            track of.
           </p>
-          <ul className="mt-6 space-y-2">
+          <ul className="mt-5 overflow-hidden rounded-[28px] bg-card">
             {objs.map((o) => {
               const off = excluded.has(o.id);
               return (
-                <li key={o.id}>
+                <li
+                  key={o.id}
+                  id={`obj-${o.id}`}
+                  className={`flex items-center gap-3.5 border-b border-paper p-2.5 pr-4 transition-colors last:border-0 ${
+                    active === o.id ? "bg-paper" : ""
+                  }`}
+                >
                   <button
                     type="button"
-                    onClick={() => {
-                      setActive(o.id);
+                    aria-label={`Show ${labels[o.id] ?? o.label} in photo`}
+                    onClick={() => setActive((a) => (a === o.id ? null : o.id))}
+                    className="shrink-0"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={o.crop}
+                      alt=""
+                      className={`size-14 rounded-[18px] object-cover transition ${off ? "opacity-35 grayscale" : ""}`}
+                    />
+                  </button>
+                  <div className={`min-w-0 flex-1 transition ${off ? "opacity-40" : ""}`}>
+                    <InlineEdit
+                      label="Item name"
+                      value={labels[o.id] ?? o.label}
+                      onSave={(v) => setLabels((l) => ({ ...l, [o.id]: v }))}
+                      className="text-[16px] font-semibold"
+                    />
+                  </div>
+                  <Toggle
+                    on={!off}
+                    label={`Keep track of ${labels[o.id] ?? o.label}`}
+                    onChange={() =>
                       setExcluded((s) => {
                         const n = new Set(s);
                         if (n.has(o.id)) n.delete(o.id);
                         else n.add(o.id);
                         return n;
-                      });
-                    }}
-                    className={`flex w-full items-center gap-4 rounded-[20px] p-2 pr-5 text-left transition ${
-                      off ? "opacity-35" : "bg-ink-2"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={o.crop} alt="" className="size-14 rounded-[14px] object-cover" />
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-[16px] font-semibold ${off ? "line-through" : ""}`}>
-                        {o.label}
-                      </span>
-                      <span className="mono mt-1 block truncate text-[11px] text-ash">
-                        {o.traits.join(" · ")}
-                      </span>
-                    </span>
-                  </button>
+                      })
+                    }
+                  />
                 </li>
               );
             })}
           </ul>
         </section>
-        <div className="pb-safe fixed inset-x-0 bottom-0 mx-auto max-w-[480px] bg-gradient-to-t from-ink via-ink to-transparent px-5 pt-10">
-          <Button onClick={commit} disabled={kept === 0}>
-            Commit baseline · {kept}
+
+        <div className="pb-safe fixed inset-x-0 bottom-0 mx-auto max-w-[480px] bg-gradient-to-t from-paper via-paper/95 to-transparent px-5 pt-10">
+          <Button onClick={save} disabled={kept === 0}>
+            Save space · {plural(kept, "item")}
           </Button>
         </div>
       </main>
@@ -143,51 +175,90 @@ export default function NewSpace() {
   }
 
   return (
-    <main className="pt-safe flex min-h-dvh flex-col px-5 pb-safe">
-      <div className="-ml-1 pt-1">
-        <Round href="/" aria-label="Back" variant="flat">
+    <main className="pt-safe flex min-h-dvh flex-col bg-paper px-5 pb-safe">
+      <div className="flex items-center justify-between">
+        <Round href="/" aria-label="Back" variant="card">
           <Back />
         </Round>
+        <span className="text-[15px] font-semibold">New space</span>
+        <span className="size-11" />
       </div>
 
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Name this space"
-        className="display mt-8 w-full bg-transparent text-[48px] text-bone outline-none placeholder:text-ink-3"
+        placeholder="Name it"
+        aria-label="Space name"
+        className="display mt-8 w-full bg-transparent text-[48px] outline-none placeholder:text-mute/60"
       />
+      <p className="mt-2 text-[15px] text-soft">A desk, a drawer, the entry shelf…</p>
 
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="relative mt-8 flex flex-1 flex-col items-center justify-center gap-5 overflow-hidden rounded-[28px] bg-ink-2 transition active:scale-[0.99]"
-      >
-        <span className="grid size-20 place-items-center rounded-full bg-signal text-ink">
-          <Aperture width={34} height={34} />
-        </span>
-        <span className="display text-[30px]">Shoot the baseline</span>
-        <span className="mono px-10 text-center text-[11px] leading-5 text-ash">
-          Top-down · even light · nothing hidden
-        </span>
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => onFile(e.target.files?.[0])}
-      />
+      <div className="mt-6 flex flex-1 flex-col justify-center">
+        <button
+          type="button"
+          onClick={() => cameraRef.current?.click()}
+          className="relative mx-auto flex w-full flex-col items-center justify-center gap-4 overflow-hidden rounded-[32px] border-2 border-dashed border-line bg-card/50 px-8 text-center transition active:scale-[0.99]"
+          style={{ aspectRatio: FRAME, width: `min(100%, calc(48dvh * ${FRAME}))` }}
+        >
+          <span className="grid size-16 place-items-center rounded-full bg-ink text-paper">
+            <Camera width={28} height={28} />
+          </span>
+          <span className="text-[20px] font-bold tracking-[-0.03em]">Take one photo of the space</span>
+          <span className="text-[14px] leading-relaxed text-soft">
+            Shoot from above, in good light, with everything in view.
+          </span>
+        </button>
+      </div>
 
+      <div className="mt-6 flex gap-2">
+        <Button tone="card" className="flex-1" onClick={() => libraryRef.current?.click()}>
+          <Photos width={20} height={20} />
+          Photos
+        </Button>
+        <Button className="flex-[1.5]" onClick={() => cameraRef.current?.click()}>
+          <Camera width={20} height={20} />
+          Take photo
+        </Button>
+      </div>
       <button
         type="button"
         onClick={() => {
           if (!name) setName("Workbench");
           analyze(DEMO);
         }}
-        className="mt-5 h-12 text-[15px] text-ash transition active:text-bone"
+        className="mt-2 h-12 text-[14px] font-medium text-soft transition active:text-ink"
       >
-        No space handy? Use the sample workbench
+        Try it with a sample photo
       </button>
+
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => onFile(e.target.files?.[0])}
+      />
+      <input ref={libraryRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
     </main>
+  );
+}
+
+function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${on ? "bg-ink" : "bg-line"}`}
+    >
+      <span
+        className={`absolute top-0.5 size-6 rounded-full bg-white shadow-sm transition-[left] duration-250 ease-[var(--ease-spring)] ${
+          on ? "left-[22px]" : "left-0.5"
+        }`}
+      />
+    </button>
   );
 }

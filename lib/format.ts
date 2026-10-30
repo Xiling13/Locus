@@ -3,7 +3,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 export function stamp(iso: string) {
   const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${MONTHS[d.getMonth()]} ${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 export function ago(iso: string) {
@@ -11,6 +11,9 @@ export function ago(iso: string) {
   if (s < 60) return "just now";
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  if (s < 86400 * 30) return `${Math.floor(s / 86400)} d ago`;
+  if (s < 86400 * 2) return "yesterday";
+  if (s < 86400 * 30) return `${Math.floor(s / 86400)} days ago`;
   return stamp(iso);
 }
+
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

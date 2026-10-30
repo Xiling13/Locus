@@ -12,6 +12,8 @@ type State = {
   seeded: boolean;
   addSpace: (space: Space) => void;
   removeSpace: (id: string) => void;
+  renameSpace: (id: string, name: string) => void;
+  renameItem: (spaceId: string, objectId: string, label: string) => void;
   addAudit: (spaceId: string, audit: Audit) => void;
   resolveItem: (spaceId: string, auditId: string, itemId: string, r: DiffItem["resolution"]) => void;
   pushCommit: (spaceId: string, commit: Commit, fromAudit?: string) => void;
@@ -34,6 +36,22 @@ export const useLocus = create<State>()(
       seeded: false,
       addSpace: (space) => setState((s) => ({ spaces: [space, ...s.spaces] })),
       removeSpace: (id) => setState((s) => ({ spaces: s.spaces.filter((x) => x.id !== id) })),
+      renameSpace: (id, name) =>
+        setState((s) => ({ spaces: mapSpace(s.spaces, id, (sp) => ({ ...sp, name })) })),
+      renameItem: (spaceId, objectId, label) =>
+        setState((s) => ({
+          spaces: mapSpace(s.spaces, spaceId, (sp) => ({
+            ...sp,
+            commits: sp.commits.map((c) => ({
+              ...c,
+              objects: c.objects.map((o) => (o.id === objectId ? { ...o, label } : o)),
+            })),
+            audits: sp.audits.map((a) => ({
+              ...a,
+              items: a.items.map((i) => (i.objectId === objectId ? { ...i, label } : i)),
+            })),
+          })),
+        })),
       addAudit: (spaceId, audit) =>
         setState((s) => ({
           spaces: mapSpace(s.spaces, spaceId, (sp) => ({ ...sp, audits: [audit, ...sp.audits] })),
@@ -84,6 +102,14 @@ export function useSpace(id: string) {
 
 export const headOf = (space: Space) =>
   space.commits.find((c) => c.id === space.headId) ?? space.commits[0];
+
+/** The latest check, if it hasn't been saved as the new reference photo yet. */
+export const openCheck = (space: Space) =>
+  space.audits[0] && !space.audits[0].committedAs ? space.audits[0] : undefined;
+
+/** Items from the latest open check that are still unaccounted for. */
+export const missingOf = (space: Space) =>
+  openCheck(space)?.items.filter((i) => i.kind === "removed" && i.resolution !== "found") ?? [];
 
 let seeding: Promise<void> | null = null;
 
