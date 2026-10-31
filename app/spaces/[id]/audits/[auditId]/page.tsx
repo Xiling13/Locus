@@ -314,7 +314,7 @@ function Row({
       >
         <span className="relative shrink-0">
           <Thumb src={item.crop} className={`transition-opacity ${item.resolution === "found" ? "opacity-40" : ""}`} />
-          <span className={`absolute -right-0.5 -top-0.5 size-3.5 rounded-full ring-[3px] ring-card ${dot}`} />
+          <span className={`absolute -right-0.5 -top-0.5 size-2.5 rounded-full ring-2 ring-card ${dot}`} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[17px] font-semibold">{item.label}</span>

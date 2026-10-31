@@ -27,7 +27,7 @@ import {
   type InlineEditHandle,
 } from "@/components/ui";
 import { ago, plural, stamp } from "@/lib/format";
-import { headOf, missingOf, openCheck, primaryDiff, useHydrated, useLocus, useSpace } from "@/lib/store";
+import { headOf, lastCheck, missingOf, primaryDiff, sceneOf, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Audit, Commit, LedgerObject, Space } from "@/lib/types";
 
 export default function SpacePage({ params, searchParams }: PageProps<"/spaces/[id]">) {
@@ -60,40 +60,42 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
   const [menu, setMenu] = useState(false);
 
   const head = headOf(space);
+  const last = lastCheck(space);
   const missing = missingOf(space);
   const missingIds = new Set(missing.map((m) => m.objectId));
-  const open = openCheck(space);
-  const openStatus = open ? primaryDiff(open.items) : null;
-  const focus = head.objects.find((o) => o.id === active);
+  // When something is missing, show the check's base photo so orange dots land on where it was.
+  const scene = sceneOf(space);
+  const checkStatus = last ? primaryDiff(last.items) : null;
+  const focus = scene.objects.find((o) => o.id === active);
   const intro = useIntro();
-  const openTone =
-    openStatus?.kind === "removed"
+  const checkTone =
+    checkStatus?.kind === "removed"
       ? { bg: "bg-miss-tint", text: "text-miss-deep", btn: "bg-miss text-ink" }
-      : openStatus?.kind === "moved"
+      : checkStatus?.kind === "moved"
         ? { bg: "bg-move-tint", text: "text-move-deep", btn: "bg-move text-ink" }
-        : openStatus?.kind === "added"
+        : checkStatus?.kind === "added"
           ? { bg: "bg-new-tint", text: "text-new-deep", btn: "bg-new text-paper" }
           : { bg: "bg-card", text: "", btn: "bg-paper" };
-  const openLabel = !openStatus
+  const checkLabel = !checkStatus
     ? "All in place"
-    : openStatus.kind === "removed"
-      ? `${plural(openStatus.count, "thing")} missing`
-      : openStatus.kind === "moved"
-        ? `${openStatus.count} moved`
-        : `${openStatus.count} new`;
+    : checkStatus.kind === "removed"
+      ? `${plural(checkStatus.count, "thing")} missing`
+      : checkStatus.kind === "moved"
+        ? `${checkStatus.count} moved`
+        : `${checkStatus.count} new`;
 
   return (
     <main className="min-h-dvh bg-paper pb-36">
-      <div className="pt-safe relative px-2">
-        <div className="relative">
+      <div className="pt-safe relative px-2 pb-3">
+        <div className="space-hero relative rounded-[34px] shadow-[0_22px_44px_-18px_rgb(0_0_0/0.28)]">
           <Shared name={`space-${space.id}`}>
             <ScenePhoto
-              src={head.image}
-              width={head.width}
-              height={head.height}
+              src={scene.image}
+              width={scene.width}
+              height={scene.height}
               aspect={4 / 5}
               className="rounded-[34px]"
-              pins={head.objects.map((o) => ({
+              pins={scene.objects.map((o) => ({
                 id: o.id,
                 bbox: o.bbox,
                 label: o.label,
@@ -103,45 +105,45 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
               onPick={(id) => setActive((a) => (a === id ? null : id))}
             />
           </Shared>
-          <div className="absolute inset-x-2 top-2 flex justify-between">
-            <Round href="/" aria-label="Back">
+          <div className="absolute inset-x-2.5 top-2.5 flex justify-between">
+            <Round href="/" aria-label="Back" className="space-chrome">
               <Back />
             </Round>
-            <Round aria-label="More" onClick={() => setMenu(true)}>
+            <Round aria-label="More" onClick={() => setMenu(true)} className="space-chrome">
               <More />
             </Round>
           </div>
         </div>
       </div>
 
-      <section className="px-5 pt-6">
+      <section className="px-5 pt-5">
         <InlineEdit
           ref={title}
           label="Space name"
           value={space.name}
           onSave={(v) => renameSpace(space.id, v)}
-          className="display text-[44px]"
+          className="space-title display text-[44px]"
         />
         <p className="mt-2 text-[15px] text-soft">
-          {plural(head.objects.length, "item")} · photo from {stamp(head.createdAt)}
+          {plural(scene.objects.length, "item")} · photo from {stamp(scene.createdAt)}
         </p>
 
-        {open && (
+        {last && (
           <Link
-            href={`/spaces/${space.id}/audits/${open.id}`}
+            href={`/spaces/${space.id}/audits/${last.id}`}
             transitionTypes={nav("forward")}
-            className={`mt-6 flex items-center gap-4 rounded-[28px] p-4 pl-5 transition-transform duration-300 active:scale-[0.98] active:duration-100 ${openTone.bg} ${intro ? "rise" : ""}`}
+            className={`mt-5 flex items-center gap-3.5 rounded-[24px] p-3.5 pl-4 transition-transform duration-300 active:scale-[0.98] active:duration-100 ${checkTone.bg} ${intro ? "rise" : ""}`}
           >
             <span className="min-w-0 flex-1">
-              <span className={`block text-[18px] font-bold ${openTone.text}`}>
-                {openLabel}
+              <span className={`block text-[16px] font-bold ${checkTone.text}`}>
+                {checkLabel}
               </span>
-              <span className="mt-0.5 block truncate text-[14px] text-soft">
-                {missing.length ? missing.map((m) => m.label).join(", ") : `Checked ${ago(open.createdAt)}`}
+              <span className="mt-0.5 block truncate text-[13px] text-soft">
+                {missing.length ? missing.map((m) => m.label).join(", ") : `Checked ${ago(last.createdAt)}`}
               </span>
             </span>
-            <span className={`grid size-11 shrink-0 place-items-center rounded-full ${openTone.btn}`}>
-              <Arrow width={18} height={18} />
+            <span className={`grid size-10 shrink-0 place-items-center rounded-full ${checkTone.btn}`}>
+              <Arrow width={16} height={16} />
             </span>
           </Link>
         )}
@@ -150,7 +152,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
       <section className="mt-10 px-5">
         <h2 className="text-[22px] font-bold tracking-[-0.03em]">Items</h2>
         <ul className="mt-4 grid grid-cols-3 gap-x-4 gap-y-5">
-          {head.objects.map((o, i) => (
+          {scene.objects.map((o, i) => (
             <li key={o.id} className={intro ? "rise" : ""} style={{ animationDelay: `${i * 30}ms` }}>
               <button
                 type="button"
@@ -161,7 +163,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={o.crop} alt="" className="aspect-square w-full rounded-[22px] object-cover" />
                   {missingIds.has(o.id) && (
-                    <span className="absolute right-2 top-2 size-3.5 rounded-full bg-miss ring-[3px] ring-white" />
+                    <span className="absolute -right-0.5 -top-0.5 size-3.5 rounded-full bg-miss ring-[3px] ring-paper" />
                   )}
                 </span>
                 <span className="mt-2 line-clamp-2 block text-[14px] font-medium leading-snug">{o.label}</span>
@@ -169,7 +171,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
             </li>
           ))}
         </ul>
-        {head.objects.length === 0 && (
+        {scene.objects.length === 0 && (
           <p className="mt-3 px-1 text-[14px] text-mute">Nothing tracked here. Switch an item back on below.</p>
         )}
       </section>
@@ -189,9 +191,9 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
         <ItemSheet
           key={focus.id}
           space={space}
-          head={head}
+          head={scene}
           item={focus}
-          missingCheck={missingIds.has(focus.id) ? open : undefined}
+          missingCheck={missingIds.has(focus.id) ? last : undefined}
           onClose={() => setActive(null)}
         />
       )}
@@ -376,7 +378,7 @@ function Untracked({ space }: { space: Space }) {
 }
 
 function History({ space, head }: { space: Space; head: Commit }) {
-  const first = space.commits[space.commits.length - 1];
+  const first = space.commits.find((c) => c.parentId === null) ?? space.commits.at(-1)!;
   return (
     <section className="mt-12 px-5">
       <h2 className="text-[22px] font-bold tracking-[-0.03em]">History</h2>

@@ -83,7 +83,7 @@ export default function ActivityPage() {
 }
 
 function Row({ entry: { at, space, audit } }: { entry: Entry }) {
-  const first = space.commits[space.commits.length - 1];
+  const first = space.commits.find((c) => c.parentId === null) ?? space.commits.at(-1)!;
   const body = (
     <>
       <Thumb src={audit?.image ?? first.image} />

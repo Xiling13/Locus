@@ -160,7 +160,7 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
           e.stopPropagation();
           dragged.current = false;
         }}
-        className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto px-[11%] pb-10 pt-2 active:cursor-grabbing"
+        className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto px-[11%] pb-14 pt-3 active:cursor-grabbing"
       >
         {spaces.map((s, i) => (
           <DeckCard key={s.id} index={i} intro={intro}>
@@ -224,6 +224,8 @@ function SpaceCard({ space }: { space: Space }) {
   const last = space.audits[0];
   const missing = missingOf(space);
   const status = statusOf(space);
+  // Prefer the check photo when there are findings so the card matches the glanceable space view.
+  const shot = last && status.state !== "unchecked" && status.state !== "clear" ? last : null;
   const label =
     status.state === "unchecked"
       ? "Not checked yet"
@@ -239,14 +241,14 @@ function SpaceCard({ space }: { space: Space }) {
     <Link
       href={`/spaces/${space.id}`}
       transitionTypes={nav("forward")}
-      className="block rounded-[34px] bg-card p-2 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.25)] transition-transform duration-300 active:scale-[0.97] active:duration-100"
+      className="block rounded-[34px] bg-card p-2 shadow-[0_16px_36px_-14px_rgb(0_0_0/0.22)] transition-transform duration-300 active:scale-[0.97] active:duration-100"
     >
       <div className="relative">
         <Shared name={`space-${space.id}`}>
           <Frame
-            src={last && !last.committedAs ? last.image : head.image}
-            width={head.width}
-            height={head.height}
+            src={(shot ?? head).image}
+            width={(shot ?? head).width}
+            height={(shot ?? head).height}
             aspect={4 / 5}
             className="rounded-[27px]"
           />

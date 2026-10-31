@@ -93,8 +93,12 @@ export function ScenePhoto({
             }}
           >
             <span
-              className={`size-3 rounded-full ring-2 shadow-[0_1px_5px_rgb(0_0_0/0.4)] ${
-                p.missing ? "bg-miss ring-white" : p.off ? "bg-transparent ring-white/90" : "bg-white ring-black/10"
+              className={`rounded-full ring-2 shadow-[0_1px_4px_rgb(0_0_0/0.28)] ${
+                p.missing
+                  ? "size-3 bg-miss ring-white"
+                  : p.off
+                    ? "size-2.5 bg-transparent ring-white/80"
+                    : "size-2.5 bg-white/85 ring-black/8"
               }`}
             />
           </button>

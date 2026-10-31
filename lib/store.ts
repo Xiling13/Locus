@@ -4,7 +4,7 @@ import { del, get, set } from "idb-keyval";
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { buildCommit, detect, runAudit, shortId } from "./engine";
+import { buildCommit, detect, recommit, runAudit, shortId } from "./engine";
 import type { Audit, Commit, DiffItem, DiffKind, LedgerObject, Space } from "./types";
 
 type State = {
@@ -142,8 +142,8 @@ export const useLocus = create<State>()(
     {
       name: "locus",
       storage: idb,
-      // Bump to wipe stale demo rows so home status reflects the seeded check.
-      version: 4,
+      // Bump so demo reseeds with newest-first commits (matches pushCommit).
+      version: 7,
       migrate: () => ({ spaces: [], seeded: false }) as unknown as State,
     },
   ),
@@ -164,13 +164,24 @@ export function useSpace(id: string) {
 export const headOf = (space: Space) =>
   space.commits.find((c) => c.id === space.headId) ?? space.commits[0];
 
-/** The latest check, if it hasn't been saved as the new reference photo yet. */
+/** Most recent check, whether or not it was saved as the current photo. */
+export const lastCheck = (space: Space) => space.audits[0];
+
+/** The latest check, if it hasn't been saved as the new current photo yet. */
 export const openCheck = (space: Space) =>
   space.audits[0] && !space.audits[0].committedAs ? space.audits[0] : undefined;
 
-/** Items from the latest open check that are still unaccounted for. */
+/** Missing items from the latest check (saved or not) — still unaccounted for. */
 export const missingOf = (space: Space) =>
-  openCheck(space)?.items.filter((i) => i.kind === "removed" && i.resolution !== "found") ?? [];
+  lastCheck(space)?.items.filter((i) => i.kind === "removed" && i.resolution !== "found") ?? [];
+
+/** Photo + items to show when glancing at what's missing (the check's base). */
+export function sceneOf(space: Space) {
+  const head = headOf(space);
+  const last = lastCheck(space);
+  if (!last || !missingOf(space).length) return head;
+  return space.commits.find((c) => c.id === last.baseCommitId) ?? head;
+}
 
 /** Display order / priority: Missing > Moved > New. */
 export const KIND_ORDER: Record<DiffKind, number> = { removed: 0, moved: 1, added: 2 };
@@ -225,13 +236,19 @@ export function ensureDemo() {
     const current = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
     const audit = await runAudit(commit, current);
     audit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString();
+    // Checks are normally saved; keep the glanceable missing UI from that check.
+    const { commit: saved, untracked } = await recommit(commit, audit);
+    saved.createdAt = audit.createdAt;
+    audit.committedAs = saved.id;
     useLocus.getState().addSpace({
       id: shortId(),
       name: "Workbench",
       createdAt: commit.createdAt,
-      headId: commit.id,
-      commits: [commit],
+      headId: saved.id,
+      // Newest first — same order pushCommit keeps.
+      commits: [saved, commit],
       audits: [audit],
+      untracked,
       demo: true,
     });
     useLocus.getState().markSeeded();
