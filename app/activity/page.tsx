@@ -100,7 +100,7 @@ function Row({ entry: { at, space, audit } }: { entry: Entry }) {
           )}
         </span>
       </span>
-      <span className="shrink-0 self-start pt-1 text-[13px] tabular-nums text-mute">{time(at)}</span>
+      <span className="shrink-0 self-center text-[13px] tabular-nums text-mute">{time(at)}</span>
     </>
   );
   if (!audit) return <div className="flex items-center gap-3.5 p-2.5 pr-4">{body}</div>;
