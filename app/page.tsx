@@ -27,10 +27,10 @@ export default function Home() {
 
   return (
     <Screen>
-    <main className="flex h-dvh flex-col bg-paper">
-      <header className="pt-safe flex shrink-0 items-center justify-between px-4">
+    <main className="home-shell flex flex-col bg-paper">
+      <header className="home-header pt-safe flex shrink-0 items-center justify-between px-4">
         <Logo className="pl-1" />
-        <Round href="/activity" nav="forward" variant="card" aria-label="Activity">
+        <Round href="/activity" nav="forward" variant="card" aria-label="Activity" className="home-round">
           <Clock width={21} height={21} />
         </Round>
       </header>
@@ -57,17 +57,17 @@ export default function Home() {
         )}
       </h1>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col">
         <Deck spaces={spaces} intro={intro} />
       </div>
 
       <nav className="home-actions pb-safe flex shrink-0 gap-2 px-5 pt-6">
         <Link href="/search" transitionTypes={nav("forward")} className={buttonClass("card", "min-w-0 flex-1 basis-0")}>
-          <Search width={20} height={20} />
+          <Search width={18} height={18} />
           Search
         </Link>
         <Link href="/spaces/new" transitionTypes={nav("up")} className={buttonClass("ink", "min-w-0 flex-1 basis-0")}>
-          <Plus width={20} height={20} />
+          <Plus width={18} height={18} />
           New space
         </Link>
       </nav>
@@ -126,7 +126,7 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
   };
 
   return (
-    <section className="mt-5 flex min-h-0 flex-1 flex-col justify-center pb-4">
+    <section className="home-deck mt-5 flex min-h-0 flex-1 flex-col justify-center pb-4">
       <div
         ref={rail}
         onScroll={update}
@@ -160,7 +160,7 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
           e.stopPropagation();
           dragged.current = false;
         }}
-        className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto px-[11%] pb-14 pt-3 active:cursor-grabbing"
+        className="home-rail no-scrollbar flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto px-[11%] pb-14 pt-5 active:cursor-grabbing"
       >
         {spaces.map((s, i) => (
           <DeckCard key={s.id} index={i} intro={intro}>
@@ -241,7 +241,7 @@ function SpaceCard({ space }: { space: Space }) {
     <Link
       href={`/spaces/${space.id}`}
       transitionTypes={nav("forward")}
-      className="block rounded-[34px] bg-card p-2 shadow-[0_16px_36px_-14px_rgb(0_0_0/0.22)] transition-transform duration-300 active:scale-[0.97] active:duration-100"
+      className="home-card block rounded-[34px] bg-card p-2 shadow-[0_16px_36px_-14px_rgb(0_0_0/0.22)] transition-transform duration-300 active:scale-[0.97] active:duration-100"
     >
       <div className="relative">
         <Shared name={`space-${space.id}`}>
@@ -263,22 +263,22 @@ function SpaceCard({ space }: { space: Space }) {
           )}
         </div>
       </div>
-      <div className="flex items-end gap-3 px-3 pb-3 pt-4">
+      <div className="home-card-foot flex items-end gap-3 px-3 pb-3 pt-4">
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[26px] font-bold leading-tight tracking-[-0.035em]">{space.name}</div>
-          <div className="mt-1 truncate text-[14px] text-soft">
+          <div className="home-card-name truncate text-[26px] font-bold leading-tight tracking-[-0.035em]">{space.name}</div>
+          <div className="home-card-meta mt-1 truncate text-[14px] text-soft">
             {plural(head.objects.length, "item")} · {ago((last ?? head).createdAt)}
           </div>
         </div>
         {missing.length > 0 ? (
-          <div className="flex -space-x-3">
+          <div className="home-card-avatars flex -space-x-3">
             {missing.slice(0, 3).map((m) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={m.id} src={m.crop} alt="" className="size-10 rounded-full object-cover ring-[3px] ring-card" />
             ))}
           </div>
         ) : (
-          <span className="grid size-10 place-items-center rounded-full bg-paper">
+          <span className="home-card-avatars grid size-10 place-items-center rounded-full bg-paper">
             <Chevron width={18} height={18} className="-rotate-90" />
           </span>
         )}

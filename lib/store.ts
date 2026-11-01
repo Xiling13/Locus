@@ -234,34 +234,40 @@ let seeding: Promise<void> | null = null;
 
 export function ensureDemo() {
   const st = useLocus.getState();
-  if (st.seeded || seeding) return seeding;
+  if (st.seeded) return null;
+  if (seeding) return seeding;
   seeding = (async () => {
-    const image = { src: "/demo/bench-base.jpg", width: 864, height: 1152 };
-    const detections = await detect(image);
-    const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
-    commit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString();
-    commit.objects.forEach((o) => (o.seenAt = commit.createdAt));
-    const current = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
-    const audit = await runAudit(commit, current);
-    audit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString();
-    // Checks are normally saved; keep the glanceable missing UI from that check.
-    const { commit: saved, untracked } = await recommit(commit, audit);
-    saved.createdAt = audit.createdAt;
-    audit.committedAs = saved.id;
-    useLocus.getState().addSpace({
-      id: shortId(),
-      name: "Workbench",
-      createdAt: commit.createdAt,
-      headId: saved.id,
-      // Newest first — same order pushCommit keeps.
-      commits: [saved, commit],
-      audits: [audit],
-      untracked,
-      demo: true,
-    });
-    useLocus.getState().markSeeded();
-  })().finally(() => {
-    seeding = null;
-  });
+    try {
+      const image = { src: "/demo/bench-base.jpg", width: 864, height: 1152 };
+      const detections = await detect(image);
+      const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
+      commit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString();
+      commit.objects.forEach((o) => (o.seenAt = commit.createdAt));
+      const current = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
+      const audit = await runAudit(commit, current);
+      audit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString();
+      // Checks are normally saved; keep the glanceable missing UI from that check.
+      const { commit: saved, untracked } = await recommit(commit, audit);
+      saved.createdAt = audit.createdAt;
+      audit.committedAs = saved.id;
+      useLocus.getState().addSpace({
+        id: shortId(),
+        name: "Workbench",
+        createdAt: commit.createdAt,
+        headId: saved.id,
+        // Newest first — same order pushCommit keeps.
+        commits: [saved, commit],
+        audits: [audit],
+        untracked,
+        demo: true,
+      });
+    } catch (err) {
+      console.error("Demo seed failed", err);
+    } finally {
+      // Always leave the splash — an empty home beats an infinite logo screen.
+      useLocus.getState().markSeeded();
+      seeding = null;
+    }
+  })();
   return seeding;
 }

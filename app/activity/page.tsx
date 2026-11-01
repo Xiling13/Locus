@@ -63,9 +63,14 @@ export default function ActivityPage() {
             {groups.map((g, gi) => (
               <section key={g.label} className={`mt-5 ${intro ? "rise" : ""}`} style={{ animationDelay: `${gi * 60}ms` }}>
                 <h2 className="px-1 text-[13px] font-semibold text-mute">{g.label}</h2>
-                <ol className="mt-2 overflow-hidden rounded-[28px] bg-card">
-                  {g.entries.map((e) => (
-                    <li key={e.key} className="border-b border-paper last:border-0">
+                <ol className="mt-2 rounded-[28px] bg-card">
+                  {g.entries.map((e, i) => (
+                    <li
+                      key={e.key}
+                      className={`border-b border-paper last:border-0 ${
+                        i === 0 ? "rounded-t-[28px]" : ""
+                      } ${i === g.entries.length - 1 ? "rounded-b-[28px]" : ""}`}
+                    >
                       <Row entry={e} />
                     </li>
                   ))}
@@ -86,7 +91,10 @@ function Row({ entry: { at, space, audit } }: { entry: Entry }) {
   const first = space.commits.find((c) => c.parentId === null) ?? space.commits.at(-1)!;
   const body = (
     <>
-      <Thumb src={audit?.image ?? first.image} />
+      <Thumb
+        src={audit?.image ?? first.image}
+        className="shadow-[0_8px_18px_-6px_rgb(0_0_0/0.32)]"
+      />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 text-[16px] font-semibold">
           <span className="truncate">{space.name}</span>
@@ -103,12 +111,12 @@ function Row({ entry: { at, space, audit } }: { entry: Entry }) {
       <span className="shrink-0 self-center text-[13px] tabular-nums text-mute">{time(at)}</span>
     </>
   );
-  if (!audit) return <div className="flex items-center gap-3.5 p-2.5 pr-4">{body}</div>;
+  if (!audit) return <div className="flex items-center gap-3.5 p-3 pr-4">{body}</div>;
   return (
     <Link
       href={`/spaces/${space.id}/audits/${audit.id}`}
       transitionTypes={nav("forward")}
-      className="flex items-center gap-3.5 p-2.5 pr-4 transition-colors active:bg-paper"
+      className="flex items-center gap-3.5 p-3 pr-4 transition-colors active:bg-paper"
     >
       {body}
     </Link>

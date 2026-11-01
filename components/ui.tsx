@@ -237,16 +237,16 @@ export function Changes({ audit }: { audit: Audit }) {
     n("added") && { tone: "bg-new", text: `${n("added")} new` },
   ].filter(Boolean) as { tone: string; text: string }[];
   return (
-    <span className="flex flex-wrap gap-x-3 text-[13px] text-soft">
+    <span className="flex flex-nowrap gap-x-2 text-[13px] text-soft">
       {parts.length ? (
         parts.map((p) => (
-          <span key={p.text} className="flex items-center gap-1.5">
-            <span className={`size-1.5 rounded-full ${p.tone}`} />
+          <span key={p.text} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+            <span className={`size-1.5 shrink-0 rounded-full ${p.tone}`} />
             {p.text}
           </span>
         ))
       ) : (
-        <span>All in place</span>
+        <span className="whitespace-nowrap">All in place</span>
       )}
     </span>
   );
