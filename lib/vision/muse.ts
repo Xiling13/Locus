@@ -53,7 +53,11 @@ export const museVision: VisionProvider = {
     } catch (err) {
       if (err instanceof DOMException && err.name === "TimeoutError")
         throw new VisionError("slow", "TIMEOUT", "Vision request timed out");
-      throw new VisionError("offline", "NETWORK", "Vision request never reached the server");
+      // Fetch can fail while the device is still online (DNS, proxy, server down).
+      // Only "offline" when we know the device lost connectivity.
+      if (!navigator.onLine)
+        throw new VisionError("offline", "OFFLINE", "Device is offline");
+      throw new VisionError("server", "NETWORK", "Vision request never reached the server");
     }
 
     const payload = (await res.json().catch(() => ({}))) as {
