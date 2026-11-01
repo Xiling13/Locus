@@ -1,5 +1,5 @@
 import { center, region } from "../geometry";
-import type { LoadedImage } from "../image";
+import { forVision, type LoadedImage } from "../image";
 import type { Detection, LedgerObject } from "../types";
 import { fixtureHints, fixtures } from "./fixtures";
 import { mockVision } from "./mock";
@@ -32,11 +32,12 @@ export const museVision: VisionProvider = {
       return mockVision.detect(image, ctx);
     }
 
+    // Same crop/aspect as Scanner / check viewfinder; compress only when oversized.
     const res = await fetch("/api/vision/detect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        image: image.src,
+        image: await forVision(image),
         base: ctx?.base as LedgerObject[] | undefined,
       }),
     });

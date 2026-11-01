@@ -50,6 +50,26 @@ export async function buildCommit(
   };
 }
 
+/** An item the user outlined by hand on the reference photo. */
+export async function manualObject(commit: Commit, bbox: BBox, label: string): Promise<LedgerObject> {
+  const img = await loadImage(commit.image);
+  const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
+  const d: Detection = {
+    id: shortId(),
+    label,
+    category: "Everyday",
+    traits: [],
+    signature: `${slug}-${shortId().slice(0, 4)}`,
+    bbox,
+  };
+  return {
+    ...d,
+    crop: cropOf(img, bbox),
+    hint: vision.describePlacement(d, [...commit.objects, d]),
+    seenAt: new Date().toISOString(),
+  };
+}
+
 export async function runAudit(base: Commit, image: LoadedImage, untracked: LedgerObject[] = []): Promise<Audit> {
   const ignored = new Set(untracked.map((o) => o.signature));
   const detections = (await detect(image, base.objects)).filter((d) => !ignored.has(d.signature));

@@ -48,7 +48,7 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
       occluded ? `${occluded} to look at` : "all clear",
     ];
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: values[i] })) });
-    await wait(Math.max(0, 2400 - (Date.now() - started)));
+    await wait(Math.max(600, 2400 - (Date.now() - started)));
     addAudit(space!.id, audit);
     router.replace(`/spaces/${space!.id}/audits/${audit.id}`, { transitionTypes: nav("forward") });
   }

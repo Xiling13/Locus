@@ -2,15 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, ViewTransition } from "react";
-import { Back, Camera, Close, Photos } from "@/components/icons";
-import { ScenePhoto } from "@/components/Photo";
+import { Back, Camera, Close, Photos, Plus } from "@/components/icons";
+import { ScenePhoto, Spot } from "@/components/Photo";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
-import { Button, Dock, InlineEdit, nav, Round, Screen, Shared, Thumb, Toggle } from "@/components/ui";
-import { buildCommit, detect, shortId } from "@/lib/engine";
+import { Button, Dock, InlineEdit, nav, Round, Screen, Shared, Sheet, Thumb, Toggle } from "@/components/ui";
+import { buildCommit, detect, manualObject, shortId } from "@/lib/engine";
 import { plural } from "@/lib/format";
 import { FRAME, fromFile, type LoadedImage } from "@/lib/image";
 import { useLocus } from "@/lib/store";
-import type { Commit } from "@/lib/types";
+import type { BBox, Commit } from "@/lib/types";
 
 type Stage =
   | { k: "capture" }
@@ -25,6 +25,8 @@ export default function NewSpace() {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [active, setActive] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [outline, setOutline] = useState<BBox | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
 
@@ -40,12 +42,26 @@ export default function NewSpace() {
     const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
     const n = plural(commit.objects.length, "item");
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: [n, "done", "done"][i] })) });
-    await wait(Math.max(0, 2400 - (Date.now() - started)));
+    await wait(Math.max(600, 2400 - (Date.now() - started)));
     startTransition(() => setStage({ k: "review", commit }));
   }
 
   async function onFile(f?: File) {
     if (f) analyze(await fromFile(f));
+  }
+
+  function startAdding() {
+    setActive(null);
+    setDrawing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function addItem(label: string) {
+    if (stage.k !== "review" || !outline) return;
+    const obj = await manualObject(stage.commit, outline, label);
+    setStage({ k: "review", commit: { ...stage.commit, objects: [...stage.commit.objects, obj] } });
+    setOutline(null);
+    setActive(obj.id);
   }
 
   function save() {
@@ -102,13 +118,34 @@ export default function NewSpace() {
                   setActive((a) => (a === id ? null : id));
                   document.getElementById(`obj-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
+                onClear={() => setActive(null)}
+                onDraw={
+                  drawing
+                    ? (b) => {
+                        setDrawing(false);
+                        setOutline(b);
+                      }
+                    : undefined
+                }
               />
             </Shared>
-            <div className="absolute left-2 top-2">
-              <Round aria-label="Retake" onClick={() => startTransition(() => setStage({ k: "capture" }))}>
-                <Back />
-              </Round>
-            </div>
+            {drawing ? (
+              <div className="fade pointer-events-none absolute inset-x-2.5 top-2.5 z-40 flex items-center justify-between gap-2">
+                <span className="glass rounded-full px-4 py-2.5 text-[14px] font-semibold">Drag around the item</span>
+                <Round aria-label="Cancel" onClick={() => setDrawing(false)} className="pointer-events-auto">
+                  <Close />
+                </Round>
+              </div>
+            ) : (
+              <div className="absolute inset-x-2.5 top-2.5 z-40 flex justify-between">
+                <Round aria-label="Retake" onClick={() => startTransition(() => setStage({ k: "capture" }))}>
+                  <Back />
+                </Round>
+                <Round aria-label="Add an item" onClick={startAdding}>
+                  <Plus />
+                </Round>
+              </div>
+            )}
           </div>
         </div>
 
@@ -173,6 +210,25 @@ export default function NewSpace() {
             Save space · {plural(kept, "item")}
           </Button>
         </Dock>
+
+        {outline && (
+          <Sheet label="Name this item" onClose={() => setOutline(null)}>
+            {(close) => (
+              <NameItem
+                commit={stage.commit}
+                bbox={outline}
+                onAdd={async (label) => {
+                  await addItem(label);
+                  close();
+                }}
+                onRedo={() => {
+                  close();
+                  setTimeout(startAdding, 300);
+                }}
+              />
+            )}
+          </Sheet>
+        )}
       </main>
     );
   }
@@ -236,4 +292,47 @@ export default function NewSpace() {
     </main>
   );
   }
+}
+
+function NameItem({
+  commit,
+  bbox,
+  onAdd,
+  onRedo,
+}: {
+  commit: Commit;
+  bbox: BBox;
+  onAdd: (label: string) => void;
+  onRedo: () => void;
+}) {
+  const [name, setName] = useState("");
+  const label = name.trim();
+  return (
+    <form
+      className="px-4 pb-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (label) onAdd(label);
+      }}
+    >
+      <Spot src={commit.image} width={commit.width} height={commit.height} bbox={bbox} aspect={16 / 11} className="rounded-[24px]" />
+      <input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="What is it?"
+        aria-label="Item name"
+        enterKeyHint="done"
+        className="mt-5 w-full bg-transparent px-1 text-[28px] font-bold leading-tight tracking-[-0.035em] outline-none placeholder:text-mute/60"
+      />
+      <div className="mt-6 flex gap-2">
+        <Button tone="sunk" className="flex-1" onClick={onRedo}>
+          Redraw
+        </Button>
+        <Button type="submit" className="flex-1" disabled={!label}>
+          Add item
+        </Button>
+      </div>
+    </form>
+  );
 }

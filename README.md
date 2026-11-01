@@ -35,9 +35,9 @@ In code, a reference photo is a `Commit`, its item list the ledger, and a check 
 
 Pipeline for every real photo (demo fixtures stay local):
 
-1. **Muse Spark** — inventory concepts (“what’s on the desk”)
+1. **Muse Spark** — short Title Case concepts (“Monitor”, “Mouse”)
 2. **SAM 3.1** — boxes / masks per concept
-3. **Muse Spark** — label each box + Re-ID signatures across checks
+3. First photo uses those names directly; later checks re-label + Re-ID against the ledger
 
 The API key stays on the server (`/api/vision/detect`). The browser never sees it.
 

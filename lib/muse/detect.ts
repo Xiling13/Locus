@@ -68,10 +68,32 @@ function modelId() {
 }
 
 function reasoningEffort() {
-  return process.env.MUSE_REASONING_EFFORT?.trim() || "medium";
+  // low is enough for short inventory labels and is much faster than medium.
+  return process.env.MUSE_REASONING_EFFORT?.trim() || "low";
 }
 
-function useSam() {
+/** "desktop monitor" / "laptop with colorful screen" → "Desktop Monitor" / "Laptop With Colorful Screen" — then we also shorten. */
+function titleCase(raw: string) {
+  return raw
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (m) => m.toUpperCase());
+}
+
+/** Prefer 1–2 word inventory names; drop filler like "with / of / and". */
+function shortLabel(raw: string) {
+  const stop = new Set(["a", "an", "the", "with", "and", "of", "on", "in", "for"]);
+  const words = titleCase(raw)
+    .split(" ")
+    .filter((w) => w && !stop.has(w.toLowerCase()));
+  if (words.length <= 2) return words.join(" ") || "Object";
+  // Keep a leading color/material adjective + the last noun when overly long.
+  return `${words[0]} ${words[words.length - 1]}`;
+}
+
+function samEnabled() {
   const v = process.env.MUSE_USE_SAM?.trim().toLowerCase();
   // Default ON — Locus needs SAM boxes; set MUSE_USE_SAM=0 to skip.
   if (v === "0" || v === "false" || v === "off") return false;
@@ -96,21 +118,6 @@ function iou(a: BBox, b: BBox) {
   const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
   const union = a.w * a.h + b.w * b.h - inter;
   return union > 0 ? inter / union : 0;
-}
-
-/** Drop tiny noise / huge background slabs, then NMS near-duplicates. */
-function pruneBoxes(boxes: BBox[], iouThresh = 0.55): BBox[] {
-  const filtered = boxes.filter((b) => {
-    const a = area(b);
-    return a >= 0.004 && a <= 0.35 && b.w >= 0.03 && b.h >= 0.03;
-  });
-  const ranked = [...filtered].sort((a, b) => area(b) - area(a));
-  const kept: BBox[] = [];
-  for (const box of ranked) {
-    if (kept.some((k) => iou(k, box) >= iouThresh)) continue;
-    kept.push(box);
-  }
-  return kept.slice(0, 16);
 }
 
 async function museJson<T>(
@@ -163,11 +170,15 @@ async function museJson<T>(
 
 async function inventConcepts(imageDataUrl: string): Promise<Concept[]> {
   const prompt = [
-    "You inventory a desk / shelf / bench photo for Locus (physical space versioning).",
-    "Return short SAM-ready noun phrases for every distinct movable object a person would track.",
-    "Good: \"green crochet clover\", \"yellow highlighter\", \"blue pen\", \"grey stone\", \"laptop keyboard\".",
-    "Bad: inventing wallet/phone/notebook that are not visible; naming individual keys; the desk surface; walls; monitor bezel as clutter.",
-    "One phrase per object type present (not per instance). Max 10 concepts.",
+    "You inventory a photo of a room / desk / shelf / bench for Locus (physical space versioning).",
+    "Return short Title Case names for EVERY distinct movable object a person would track — scan the whole frame, edges and floor included.",
+    "Include soft and small things: clothes on the floor, shoes, bags, cables, bottles, books, toys.",
+    "Name style: 1–2 words, Title Case. Prefer the plain noun.",
+    'Good: "Monitor", "Mouse", "Keyboard", "Laptop", "Tower", "Box", "Mug".',
+    'OK when two similar items need telling apart: "Black Laptop", "Silver Laptop".',
+    'Bad: "desktop monitor", "laptop with colorful screen", "white desktop tower", "computer mouse".',
+    "Bad: inventing wallet/phone/notebook that are not visible; naming individual keys; the desk surface; walls.",
+    "One name per object type present (not per instance) — the segmenter finds every instance. Max 16 concepts.",
     "category: Electronics | Stationery | Personal | Tool | Supplies | Everyday | Decor | Other.",
   ].join("\n");
 
@@ -181,12 +192,13 @@ async function inventConcepts(imageDataUrl: string): Promise<Concept[]> {
   const seen = new Set<string>();
   const out: Concept[] = [];
   for (const c of parsed.concepts ?? []) {
-    const phrase = c.phrase?.trim().toLowerCase();
-    if (!phrase || phrase.length < 2 || seen.has(phrase)) continue;
-    seen.add(phrase);
+    const phrase = shortLabel(c.phrase || "");
+    const key = phrase.toLowerCase();
+    if (!phrase || phrase.length < 2 || seen.has(key)) continue;
+    seen.add(key);
     out.push({ phrase, category: (c.category || "Everyday").trim() });
   }
-  return out.slice(0, 10);
+  return out.slice(0, 16);
 }
 
 type SamBox = { x1: number; y1: number; x2: number; y2: number; w: number; h: number };
@@ -283,7 +295,7 @@ async function segmentWithSam(
   imageDataUrl: string,
   concepts: Concept[],
 ): Promise<Candidate[]> {
-  const batches = await mapPool(concepts, 3, async (c) => {
+  const batches = await mapPool(concepts, 5, async (c) => {
     try {
       const boxes = await samBoxesForConcept(imageDataUrl, c.phrase);
       return boxes.map((bbox) => ({
@@ -297,17 +309,26 @@ async function segmentWithSam(
     }
   });
 
-  const flat = batches.flat();
-  // NMS across concepts (same physical region from "pen" vs "blue pen")
-  const ranked = [...flat].sort((a, b) => area(b.bbox) - area(a.bbox));
-  const kept: Candidate[] = [];
+  return mergeCandidates([], batches.flat());
+}
+
+const MAX_CANDIDATES = 30;
+
+/**
+ * Adds `extra` to `kept` after size filtering and NMS. Boxes already in `kept` win,
+ * so SAM's tight boxes take precedence over Muse's rough ones for the same object.
+ */
+function mergeCandidates(kept: Candidate[], extra: Candidate[], iouThresh = 0.5): Candidate[] {
+  const out = [...kept];
+  const ranked = [...extra].sort((a, b) => area(b.bbox) - area(a.bbox));
   for (const c of ranked) {
+    if (out.length >= MAX_CANDIDATES) break;
     const a = area(c.bbox);
-    if (a < 0.004 || a > 0.35) continue;
-    if (kept.some((k) => iou(k.bbox, c.bbox) >= 0.55)) continue;
-    kept.push(c);
+    if (a < 0.002 || a > 0.6) continue;
+    if (out.some((k) => iou(k.bbox, c.bbox) >= iouThresh)) continue;
+    out.push(c);
   }
-  return kept.slice(0, 16);
+  return out;
 }
 
 /** Muse-only fallback when SAM is off or returns nothing. */
@@ -342,9 +363,11 @@ async function museDetectBoxes(
   } as const;
 
   const lines = [
-    "Locate each distinct movable object on this desk/shelf photo.",
+    "Locate EVERY distinct movable object in this room / desk / shelf photo, one box per instance.",
+    "Scan the whole frame including edges and floor; include clothes, shoes, bags, books, bottles.",
     "Coordinates: normalized 0–1000 grid, (0,0) top-left. box = [x_min,y_min,x_max,y_max].",
-    "Only objects truly visible. Do not invent wallet/phone/notebook/mouse.",
+    "label: Title Case, 1–2 words. Prefer the plain noun (Monitor, Mouse, Keyboard, Laptop).",
+    "Only objects truly visible. Do not invent wallet/phone/notebook.",
     "Do not mark individual keyboard keys — one box for the keyboard if visible.",
     "Ignore desk surface, walls, empty background.",
   ];
@@ -367,22 +390,12 @@ async function museDetectBoxes(
           w: Math.max(0.01, Math.abs(x2 - x1) / 1000),
           h: Math.max(0.01, Math.abs(y2 - y1) / 1000),
         },
-        hintPhrase: o.label || "object",
+        hintPhrase: shortLabel(o.label || "Object"),
         hintCategory: o.category || "Everyday",
       };
-    })
-    .filter((c) => {
-      const a = area(c.bbox);
-      return a >= 0.004 && a <= 0.35;
     });
 
-  const ranked = [...candidates].sort((a, b) => area(b.bbox) - area(a.bbox));
-  const kept: Candidate[] = [];
-  for (const c of ranked) {
-    if (kept.some((k) => iou(k.bbox, c.bbox) >= 0.55)) continue;
-    kept.push(c);
-  }
-  return kept.slice(0, 16);
+  return mergeCandidates([], candidates);
 }
 
 async function labelBoxes(
@@ -401,9 +414,9 @@ async function labelBoxes(
     "You label SAM / detector boxes for Locus. Each boxIndex is a crop region on the photo (0–1000 grid).",
     "For every listed box, set keep=true only if it is a real distinct movable object worth tracking.",
     "keep=false for: empty background, desk texture, monitor edge, duplicate of another box, a single keycap, tiny noise.",
-    "label: short everyday English name of what is actually inside the box (look at the pixels).",
-    "traits: 1–3 visual cues (color, material).",
-    "Do NOT reuse fake inventory names — name what you see (e.g. crochet clover, highlighter, stone).",
+    "label: Title Case, 1–2 words. Prefer the plain noun of what is inside the box (Monitor, Mouse, Keyboard, Laptop, Tower, Box).",
+    'Add one short qualifier only to tell similar items apart (Black Laptop). Never long phrases ("laptop with colorful screen").',
+    "traits: 1–2 visual cues (color, material) — put detail here, not in the label.",
     "Boxes:",
     boxList,
   ];
@@ -423,7 +436,7 @@ async function labelBoxes(
     );
   } else {
     lines.push(
-      'signature: "slug-of-label" + short token, unique per object (e.g. "clover-a3f9").',
+      'signature: "slug-of-label" + short token, unique per object (e.g. "monitor-a3f9").',
     );
   }
 
@@ -441,16 +454,17 @@ async function labelBoxes(
   for (let i = 0; i < candidates.length; i++) {
     const labeled = byIndex.get(i);
     if (labeled && !labeled.keep) continue;
-    const label = (labeled?.label || candidates[i].hintPhrase).trim();
+    const label = shortLabel(labeled?.label || candidates[i].hintPhrase);
     if (!label) continue;
-    let signature = (labeled?.signature || label.toLowerCase().replace(/\s+/g, "-")).trim();
+    const slug = label.toLowerCase().replace(/\s+/g, "-");
+    let signature = (labeled?.signature || `${slug}-${shortId().slice(0, 4)}`).trim();
     if (usedSig.has(signature)) signature = `${signature}-${shortId()}`;
     usedSig.add(signature);
     detections.push({
       id: shortId(),
       label,
       category: (labeled?.category || candidates[i].hintCategory || "Everyday").trim(),
-      traits: (labeled?.traits ?? []).map((t) => String(t).trim()).filter(Boolean).slice(0, 4),
+      traits: (labeled?.traits ?? []).map((t) => String(t).trim()).filter(Boolean).slice(0, 2),
       signature,
       bbox: candidates[i].bbox,
     });
@@ -459,30 +473,62 @@ async function labelBoxes(
   return detections;
 }
 
+/** First commit: trust SAM hits + concept names — skips a full Muse pass. */
+function detectionsFromHints(candidates: Candidate[]): Detection[] {
+  const usedSig = new Set<string>();
+  const detections: Detection[] = [];
+  for (const c of candidates) {
+    const label = shortLabel(c.hintPhrase);
+    if (!label) continue;
+    const slug = label.toLowerCase().replace(/\s+/g, "-");
+    let signature = `${slug}-${shortId().slice(0, 4)}`;
+    if (usedSig.has(signature)) signature = `${signature}-${shortId()}`;
+    usedSig.add(signature);
+    detections.push({
+      id: shortId(),
+      label,
+      category: c.hintCategory || "Everyday",
+      traits: [],
+      signature,
+      bbox: c.bbox,
+    });
+  }
+  return detections;
+}
+
 /**
  * Locus vision pipeline:
- *  1) Muse Spark — propose object concepts (inventory)
- *  2) SAM 3.1 — dense boxes / masks per concept
- *  3) Muse Spark — label each box + cross-photo Re-ID signatures
+ *  1) Muse Spark — propose short Title Case concepts → SAM 3.1 boxes per concept
+ *  2) In parallel, Muse Spark boxes every instance directly; these fill what SAM missed
+ *  3) First photo: use the names directly (faster).
+ *     Later audits: Muse labels + Re-ID signatures against the ledger.
  */
 export async function detectWithMuse(
   imageDataUrl: string,
   base?: LedgerObject[],
 ): Promise<Detection[]> {
-  let candidates: Candidate[] = [];
+  const sam = samEnabled()
+    ? inventConcepts(imageDataUrl)
+        .then((concepts) => (concepts.length ? segmentWithSam(imageDataUrl, concepts) : []))
+        .catch((err) => {
+          console.warn("[sam pipeline]", err);
+          return [] as Candidate[];
+        })
+    : Promise.resolve([] as Candidate[]);
+  const muse = museDetectBoxes(imageDataUrl, base).catch((err) => {
+    console.warn("[muse boxes]", err);
+    return [] as Candidate[];
+  });
 
-  if (useSam()) {
-    const concepts = await inventConcepts(imageDataUrl);
-    if (concepts.length) {
-      candidates = await segmentWithSam(imageDataUrl, concepts);
-    }
-  }
-
-  if (!candidates.length) {
-    candidates = await museDetectBoxes(imageDataUrl, base);
-  }
-
+  const [samBoxes, museBoxes] = await Promise.all([sam, muse]);
+  const candidates = mergeCandidates(samBoxes, museBoxes, 0.4);
   if (!candidates.length) return [];
+
+  // Both sources already return short Title Case names; skip a second Muse
+  // round-trip on the first commit.
+  if (!base?.length) {
+    return detectionsFromHints(candidates);
+  }
 
   return labelBoxes(imageDataUrl, candidates, base);
 }

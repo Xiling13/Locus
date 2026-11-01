@@ -50,6 +50,23 @@ export async function fromSource(
   return { src: c.toDataURL("image/jpeg", 0.86), width: w, height: h };
 }
 
+/**
+ * Vision payload for Muse/SAM: the same framed scan the UI shows (content + aspect),
+ * only smaller if needed so large photos don’t burn tokens. Never re-crops or pads.
+ */
+export async function forVision(image: LoadedImage, maxSide = 1280): Promise<string> {
+  if (Math.max(image.width, image.height) <= maxSide) {
+    return image.src;
+  }
+  const img = await loadImage(image.src);
+  const k = maxSide / Math.max(image.width, image.height);
+  const w = Math.max(1, Math.round(image.width * k));
+  const h = Math.max(1, Math.round(image.height * k));
+  const { c, ctx } = canvas(w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  return c.toDataURL("image/jpeg", 0.82);
+}
+
 export function cropOf(img: HTMLImageElement, box: BBox, size = 320, pad = 0.18): string {
   const W = img.naturalWidth;
   const H = img.naturalHeight;
