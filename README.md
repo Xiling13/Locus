@@ -31,13 +31,30 @@ Deleting a check that is the current reference photo rolls the reference back to
 
 In code, a reference photo is a `Commit`, its item list the ledger, and a check an `Audit`; the UI never shows these terms or their IDs.
 
-## Plugging in real vision
+## Vision (Meta Model API)
 
-The vision stack is mocked. Everything model-specific sits behind one interface:
+Pipeline for every real photo (demo fixtures stay local):
 
-- `lib/vision/provider.ts` — `VisionProvider` contract (`detect`, `describePlacement`)
-- `lib/vision/mock.ts` — mock implementation; uses hand-labelled fixtures for the demo photos, synthetic detections otherwise
-- `lib/vision/index.ts` — swap `mockVision` for your implementation
+1. **Muse Spark** — inventory concepts (“what’s on the desk”)
+2. **SAM 3.1** — boxes / masks per concept
+3. **Muse Spark** — label each box + Re-ID signatures across checks
+
+The API key stays on the server (`/api/vision/detect`). The browser never sees it.
+
+```bash
+cp .env.example .env.local
+# put MODEL_API_KEY in .env.local — gitignored, do not commit
+pnpm dev
+```
+
+On **Vercel**, add the same `MODEL_API_KEY` under Project → Settings → Environment Variables (Production + Preview). `.env.local` is only for your laptop.
+
+| Piece | Role |
+| --- | --- |
+| `lib/muse/detect.ts` | Muse + SAM pipeline |
+| `lib/vision/muse.ts` | Client → `/api/vision/detect` |
+| `.env.local` | Secrets (gitignored) |
+| `.env.example` | Safe template (safe to commit) |
 
 `detect` must return a `signature` per object: the diff engine (`lib/engine.ts`) matches objects across photos by signature, flags moves by centroid shift, and splits missing items into *confirmed* vs *occluded* by how much of the old spot is covered by current detections. Ghost overlay edges and crops are computed client-side (`lib/image.ts`).
 
