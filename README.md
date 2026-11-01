@@ -24,7 +24,7 @@ All photos are center-cropped to 3:4 (`FRAME` in `lib/image.ts`) so the viewfind
 | Activity (every check across spaces, filter by space) | `/activity` |
 | New space (take photo → rename / switch off items → save) | `/spaces/new` |
 | Space (reference photo, items, untracked items, history; `?item=` opens an item) | `/spaces/[id]` |
-| Check (camera + outline guide) | `/spaces/[id]/check` |
+| Check (camera) | `/spaces/[id]/check` |
 | Check report (pan-zoom photo, missing / new / moved, save as new reference, delete) | `/spaces/[id]/audits/[auditId]` |
 
 Deleting a check that is the current reference photo rolls the reference back to the previous one (and drops any later checks compared against it). The first photo of a space can't be deleted on its own; deleting the space removes everything.
@@ -56,7 +56,7 @@ On **Vercel**, add the same `MODEL_API_KEY` under Project → Settings → Envir
 | `.env.local` | Secrets (gitignored) |
 | `.env.example` | Safe template (safe to commit) |
 
-`detect` must return a `signature` per object: the diff engine (`lib/engine.ts`) matches objects across photos by signature, flags moves by centroid shift, and splits missing items into *confirmed* vs *occluded* by how much of the old spot is covered by current detections. Ghost overlay edges and crops are computed client-side (`lib/image.ts`).
+`detect` must return a `signature` per object: the diff engine (`lib/engine.ts`) matches objects across photos by signature, flags moves by centroid shift, and splits missing items into *confirmed* vs *occluded* by how much of the old spot is covered by current detections. Crops are computed client-side (`lib/image.ts`).
 
 ## Deploy
 

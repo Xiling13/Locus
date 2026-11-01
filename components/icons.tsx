@@ -91,13 +91,6 @@ export const Photos = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export const Ghost = (p: SVGProps<SVGSVGElement>) => (
-  <svg {...base(p)}>
-    <rect x="3.5" y="3.5" width="12" height="12" rx="2" strokeDasharray="2.5 2.5" />
-    <rect x="8.5" y="8.5" width="12" height="12" rx="2" />
-  </svg>
-);
-
 export const Fit = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />

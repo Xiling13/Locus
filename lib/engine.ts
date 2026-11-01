@@ -1,5 +1,5 @@
 import { center } from "./geometry";
-import { cropOf, edgeMap, loadImage, type LoadedImage } from "./image";
+import { cropOf, loadImage, type LoadedImage } from "./image";
 import type { Audit, BBox, Commit, Detection, DiffItem, LedgerObject } from "./types";
 import { vision } from "./vision";
 
@@ -38,7 +38,6 @@ export async function buildCommit(
     image: image.src,
     width: image.width,
     height: image.height,
-    edges: edgeMap(img),
     objects: detections.map((d) => ({
       ...d,
       id: prev.get(d.signature)?.id ?? d.id,

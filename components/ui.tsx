@@ -222,10 +222,10 @@ export function Badge({ children }: { children: ReactNode }) {
   );
 }
 
-/** "Current" if this check is the current photo, "Saved" if it was one earlier. */
+/** "Current" if this check is the space's current photo; otherwise nothing. */
 export function SavedBadge({ space, audit }: { space: Space; audit: Audit }) {
-  if (!audit.committedAs) return null;
-  return <Badge>{audit.committedAs === space.headId ? "Current" : "Saved"}</Badge>;
+  if (audit.committedAs !== space.headId) return null;
+  return <Badge>Current</Badge>;
 }
 
 /** Coloured dots summarising a check: "2 missing · 1 moved · 1 new". */

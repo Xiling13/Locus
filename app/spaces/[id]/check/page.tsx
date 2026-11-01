@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, use, useEffect, useRef, useState, ViewTransition } from "react";
 import { Failure } from "@/components/Failure";
-import { Close, Ghost, Photos } from "@/components/icons";
+import { Close, Photos } from "@/components/icons";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
 import { Button, Missing, nav, Round, Screen, Shared, Splash } from "@/components/ui";
 import { runAudit } from "@/lib/engine";
@@ -13,7 +13,6 @@ import { FRAME, fromFile, fromSource, type LoadedImage } from "@/lib/image";
 import { headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Audit, Commit } from "@/lib/types";
 
-const GHOST_ON = 0.7;
 const DEMO_CURRENT = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
 
 type Stage =
@@ -110,7 +109,6 @@ function Viewfinder({
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [camera, setCamera] = useState<"pending" | "live" | "off">("pending");
-  const [ghostOn, setGhostOn] = useState(true);
   const [peek, setPeek] = useState(false);
 
   useEffect(() => {
@@ -146,24 +144,11 @@ function Viewfinder({
     onShot(await fromSource(v));
   }
 
-  const ghostOpacity = ghostOn ? GHOST_ON : 0;
-
   return (
     <main className="flex h-dvh flex-col bg-black text-white">
-      <header className="pt-safe flex items-center justify-between px-4 pb-3">
+      <header className="pt-safe flex items-center px-4 pb-3">
         <Round href={close} nav="down" aria-label="Close" variant="dark">
           <Close />
-        </Round>
-        <span key={shot ? "shot" : "aim"} className="fade text-[15px] font-semibold">
-          {shot ? "Look good?" : "Line up with last time"}
-        </span>
-        <Round
-          aria-label="Outline guide"
-          aria-pressed={ghostOn}
-          onClick={() => setGhostOn((on) => !on)}
-          variant={ghostOn ? "card" : "dark"}
-        >
-          <Ghost />
         </Round>
       </header>
 
@@ -197,19 +182,6 @@ function Viewfinder({
             alt=""
             className="absolute inset-0 size-full object-cover transition-opacity duration-200"
             style={{ opacity: peek ? 0.6 : !shot && camera === "off" ? 0.15 : 0 }}
-          />
-          <div
-            className="pointer-events-none absolute inset-0 transition-opacity duration-300"
-            style={{
-              opacity: ghostOpacity,
-              backgroundColor: "white",
-              maskImage: `url(${head.edges})`,
-              maskSize: "cover",
-              maskPosition: "center",
-              WebkitMaskImage: `url(${head.edges})`,
-              WebkitMaskSize: "cover",
-              WebkitMaskPosition: "center",
-            }}
           />
 
           {!shot && camera === "off" && (

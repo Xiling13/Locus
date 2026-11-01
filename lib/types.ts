@@ -28,7 +28,6 @@ export type Commit = {
   image: string;
   width: number;
   height: number;
-  edges: string;
   objects: LedgerObject[];
 };
 
