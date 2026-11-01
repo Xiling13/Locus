@@ -2,11 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, ViewTransition } from "react";
+import { DrawHint, NameItem } from "@/components/AddItem";
+import { Failure } from "@/components/Failure";
 import { Back, Camera, Close, Photos, Plus } from "@/components/icons";
-import { ScenePhoto, Spot } from "@/components/Photo";
+import { ScenePhoto } from "@/components/Photo";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
 import { Button, Dock, InlineEdit, nav, Round, Screen, Shared, Sheet, Thumb, Toggle } from "@/components/ui";
 import { buildCommit, detect, manualObject, shortId } from "@/lib/engine";
+import { failureOf, type Failure as FailureInfo } from "@/lib/failure";
 import { plural } from "@/lib/format";
 import { FRAME, fromFile, type LoadedImage } from "@/lib/image";
 import { useLocus } from "@/lib/store";
@@ -15,6 +18,7 @@ import type { BBox, Commit } from "@/lib/types";
 type Stage =
   | { k: "capture" }
   | { k: "scan"; image: LoadedImage; steps: ScanStep[] }
+  | { k: "failed"; image: LoadedImage; failure: FailureInfo }
   | { k: "review"; commit: Commit };
 
 export default function NewSpace() {
@@ -38,8 +42,14 @@ export default function NewSpace() {
     ];
     startTransition(() => setStage({ k: "scan", image, steps }));
     const started = Date.now();
-    const detections = await detect(image);
-    const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
+    let commit: Commit;
+    try {
+      commit = await buildCommit(image, await detect(image), { parentId: null, message: "Initial commit" });
+    } catch (err) {
+      console.error(err);
+      startTransition(() => setStage({ k: "failed", image, failure: failureOf(err) }));
+      return;
+    }
     const n = plural(commit.objects.length, "item");
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: [n, "done", "done"][i] })) });
     await wait(Math.max(600, 2400 - (Date.now() - started)));
@@ -93,6 +103,17 @@ export default function NewSpace() {
   if (stage.k === "scan")
     return <Scanner src={stage.image.src} steps={stage.steps} title="Getting to know your space" />;
 
+  if (stage.k === "failed") {
+    const { image, failure } = stage;
+    return (
+      <Failure
+        kind={failure.kind}
+        onRetry={() => analyze(image)}
+        onClose={() => startTransition(() => setStage({ k: "capture" }))}
+      />
+    );
+  }
+
   if (stage.k === "review") {
     const objs = stage.commit.objects;
     const kept = objs.length - excluded.size;
@@ -130,12 +151,7 @@ export default function NewSpace() {
               />
             </Shared>
             {drawing ? (
-              <div className="fade pointer-events-none absolute inset-x-2.5 top-2.5 z-40 flex items-center justify-between gap-2">
-                <span className="glass rounded-full px-4 py-2.5 text-[14px] font-semibold">Drag around the item</span>
-                <Round aria-label="Cancel" onClick={() => setDrawing(false)} className="pointer-events-auto">
-                  <Close />
-                </Round>
-              </div>
+              <DrawHint onCancel={() => setDrawing(false)} />
             ) : (
               <div className="absolute inset-x-2.5 top-2.5 z-40 flex justify-between">
                 <Round aria-label="Retake" onClick={() => startTransition(() => setStage({ k: "capture" }))}>
@@ -292,47 +308,4 @@ export default function NewSpace() {
     </main>
   );
   }
-}
-
-function NameItem({
-  commit,
-  bbox,
-  onAdd,
-  onRedo,
-}: {
-  commit: Commit;
-  bbox: BBox;
-  onAdd: (label: string) => void;
-  onRedo: () => void;
-}) {
-  const [name, setName] = useState("");
-  const label = name.trim();
-  return (
-    <form
-      className="px-4 pb-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (label) onAdd(label);
-      }}
-    >
-      <Spot src={commit.image} width={commit.width} height={commit.height} bbox={bbox} aspect={16 / 11} className="rounded-[24px]" />
-      <input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="What is it?"
-        aria-label="Item name"
-        enterKeyHint="done"
-        className="mt-5 w-full bg-transparent px-1 text-[28px] font-bold leading-tight tracking-[-0.035em] outline-none placeholder:text-mute/60"
-      />
-      <div className="mt-6 flex gap-2">
-        <Button tone="sunk" className="flex-1" onClick={onRedo}>
-          Redraw
-        </Button>
-        <Button type="submit" className="flex-1" disabled={!label}>
-          Add item
-        </Button>
-      </div>
-    </form>
-  );
 }

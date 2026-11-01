@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useRef, useState } from "react";
-import { Aperture, Arrow, Back, More, Pencil, Trash } from "@/components/icons";
+import { DrawHint, NameItem } from "@/components/AddItem";
+import { Aperture, Arrow, Back, More, Pencil, Plus, Trash } from "@/components/icons";
 import { ScenePhoto, Spot } from "@/components/Photo";
 import {
   Badge,
@@ -26,9 +27,10 @@ import {
   useIntro,
   type InlineEditHandle,
 } from "@/components/ui";
+import { manualObject } from "@/lib/engine";
 import { ago, plural, stamp } from "@/lib/format";
 import { headOf, lastCheck, missingOf, primaryDiff, sceneOf, useHydrated, useLocus, useSpace } from "@/lib/store";
-import type { Audit, Commit, LedgerObject, Space } from "@/lib/types";
+import type { Audit, BBox, Commit, LedgerObject, Space } from "@/lib/types";
 
 export default function SpacePage({ params, searchParams }: PageProps<"/spaces/[id]">) {
   const { id } = use(params);
@@ -58,6 +60,9 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
   const title = useRef<InlineEditHandle>(null);
   const [active, setActive] = useState<string | null>(initialItem);
   const [menu, setMenu] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const [outline, setOutline] = useState<BBox | null>(null);
+  const addItem = useLocus((s) => s.addItem);
 
   const head = headOf(space);
   const last = lastCheck(space);
@@ -65,8 +70,26 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
   const missingIds = new Set(missing.map((m) => m.objectId));
   // When something is missing, show the check's base photo so orange dots land on where it was.
   const scene = sceneOf(space);
+  // New items are drawn on the current photo, the one the next check compares against.
+  const photo = drawing || outline ? head : scene;
+  // Items added to the current photo since that check (drawn by hand, switched back on) aren't
+  // in the older scene; list them anyway, shown against the photo they were added on.
+  const sceneIds = new Set(scene.objects.map((o) => o.id));
+  const fresh =
+    scene === head || !last
+      ? []
+      : head.objects.filter(
+          (o) => !sceneIds.has(o.id) && !last.detections.some((d) => d.signature === o.signature),
+        );
+  const items = [...scene.objects, ...fresh];
+
+  function startAdding() {
+    setActive(null);
+    setDrawing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   const checkStatus = last ? primaryDiff(last.items) : null;
-  const focus = scene.objects.find((o) => o.id === active);
+  const focus = items.find((o) => o.id === active);
   const intro = useIntro();
   const checkTone =
     checkStatus?.kind === "removed"
@@ -90,42 +113,65 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
         <div className="space-hero relative rounded-[34px] shadow-[0_22px_44px_-18px_rgb(0_0_0/0.28)]">
           <Shared name={`space-${space.id}`}>
             <ScenePhoto
-              src={scene.image}
-              width={scene.width}
-              height={scene.height}
+              src={photo.image}
+              width={photo.width}
+              height={photo.height}
               aspect={4 / 5}
               className="rounded-[34px]"
-              pins={scene.objects.map((o) => ({
+              pins={photo.objects.map((o) => ({
                 id: o.id,
                 bbox: o.bbox,
                 label: o.label,
-                missing: missingIds.has(o.id),
+                missing: photo === scene && missingIds.has(o.id),
               }))}
               active={active}
               onPick={(id) => setActive((a) => (a === id ? null : id))}
+              onDraw={
+                drawing
+                  ? (b) => {
+                      setDrawing(false);
+                      setOutline(b);
+                    }
+                  : undefined
+              }
             />
           </Shared>
-          <div className="absolute inset-x-2.5 top-2.5 flex justify-between">
-            <Round href="/" aria-label="Back" className="space-chrome">
-              <Back />
-            </Round>
-            <Round aria-label="More" onClick={() => setMenu(true)} className="space-chrome">
-              <More />
-            </Round>
-          </div>
+          {drawing ? (
+            <DrawHint onCancel={() => setDrawing(false)} />
+          ) : (
+            <div className="absolute inset-x-2.5 top-2.5 z-40 flex justify-between">
+              <Round href="/" aria-label="Back" className="space-chrome">
+                <Back />
+              </Round>
+              <Round aria-label="Add an item" onClick={startAdding} className="space-chrome">
+                <Plus />
+              </Round>
+            </div>
+          )}
         </div>
       </div>
 
       <section className="px-5 pt-5">
-        <InlineEdit
-          ref={title}
-          label="Space name"
-          value={space.name}
-          onSave={(v) => renameSpace(space.id, v)}
-          className="space-title display text-[44px]"
-        />
+        <div className="flex items-center gap-2.5">
+          <InlineEdit
+            ref={title}
+            bare
+            label="Space name"
+            value={space.name}
+            onSave={(v) => renameSpace(space.id, v)}
+            className="space-title display text-[44px]"
+          />
+          <button
+            type="button"
+            aria-label="Space options"
+            onClick={() => setMenu(true)}
+            className="grid size-9 shrink-0 place-items-center text-mute transition-[transform,color] duration-200 active:scale-90 active:text-ink active:duration-75"
+          >
+            <More width={18} height={18} />
+          </button>
+        </div>
         <p className="mt-2 text-[15px] text-soft">
-          {plural(scene.objects.length, "item")} · photo from {stamp(scene.createdAt)}
+          {plural(items.length, "item")} · photo from {stamp(scene.createdAt)}
         </p>
 
         {last && (
@@ -152,7 +198,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
       <section className="mt-10 px-5">
         <h2 className="text-[22px] font-bold tracking-[-0.03em]">Items</h2>
         <ul className="mt-4 grid grid-cols-3 gap-x-4 gap-y-5">
-          {scene.objects.map((o, i) => (
+          {items.map((o, i) => (
             <li key={o.id} className={intro ? "rise" : ""} style={{ animationDelay: `${i * 30}ms` }}>
               <button
                 type="button"
@@ -171,7 +217,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
             </li>
           ))}
         </ul>
-        {scene.objects.length === 0 && (
+        {items.length === 0 && (
           <p className="mt-3 px-1 text-[14px] text-mute">Nothing tracked here. Switch an item back on below.</p>
         )}
       </section>
@@ -191,11 +237,30 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
         <ItemSheet
           key={focus.id}
           space={space}
-          head={scene}
+          head={fresh.includes(focus) ? head : scene}
           item={focus}
           missingCheck={missingIds.has(focus.id) ? last : undefined}
           onClose={() => setActive(null)}
         />
+      )}
+
+      {outline && (
+        <Sheet label="Name this item" onClose={() => setOutline(null)}>
+          {(close) => (
+            <NameItem
+              commit={head}
+              bbox={outline}
+              onAdd={async (label) => {
+                addItem(space.id, await manualObject(head, outline, label));
+                close();
+              }}
+              onRedo={() => {
+                close();
+                setTimeout(startAdding, 300);
+              }}
+            />
+          )}
+        </Sheet>
       )}
 
       {menu && (

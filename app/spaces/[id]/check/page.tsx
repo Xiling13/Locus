@@ -2,14 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, use, useEffect, useRef, useState, ViewTransition } from "react";
+import { Failure } from "@/components/Failure";
 import { Close, Ghost, Photos } from "@/components/icons";
 import { Scanner, wait, type ScanStep } from "@/components/Scanner";
 import { Button, Missing, nav, Round, Screen, Shared, Splash } from "@/components/ui";
 import { runAudit } from "@/lib/engine";
+import { failureOf, type Failure as FailureInfo } from "@/lib/failure";
 import { plural } from "@/lib/format";
 import { FRAME, fromFile, fromSource, type LoadedImage } from "@/lib/image";
 import { headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
-import type { Commit } from "@/lib/types";
+import type { Audit, Commit } from "@/lib/types";
 
 const GHOST_ON = 0.7;
 const DEMO_CURRENT = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
@@ -17,7 +19,8 @@ const DEMO_CURRENT = { src: "/demo/bench-current.jpg", width: 864, height: 1152 
 type Stage =
   | { k: "aim" }
   | { k: "review"; image: LoadedImage }
-  | { k: "scan"; image: LoadedImage; steps: ScanStep[] };
+  | { k: "scan"; image: LoadedImage; steps: ScanStep[] }
+  | { k: "failed"; image: LoadedImage; failure: FailureInfo };
 
 export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
   const { id } = use(params);
@@ -39,7 +42,14 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
     ];
     startTransition(() => setStage({ k: "scan", image, steps }));
     const started = Date.now();
-    const audit = await runAudit(head, image, space!.untracked);
+    let audit: Audit;
+    try {
+      audit = await runAudit(head, image, space!.untracked);
+    } catch (err) {
+      console.error(err);
+      startTransition(() => setStage({ k: "failed", image, failure: failureOf(err) }));
+      return;
+    }
     const occluded = audit.items.filter((i) => i.confidence === "occluded").length;
     const changes = audit.items.length;
     const values = [
@@ -55,9 +65,15 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
 
   return (
     <Screen>
-      <ViewTransition key={stage.k === "scan" ? "scan" : "camera"} enter="swap" exit="swap" default="none">
+      <ViewTransition key={stage.k === "aim" || stage.k === "review" ? "camera" : stage.k} enter="swap" exit="swap" default="none">
         {stage.k === "scan" ? (
           <Scanner src={stage.image.src} steps={stage.steps} title="Comparing…" />
+        ) : stage.k === "failed" ? (
+          <Failure
+            kind={stage.failure.kind}
+            onRetry={() => compare(stage.image)}
+            onClose={() => startTransition(() => setStage({ k: "aim" }))}
+          />
         ) : (
           <Viewfinder
             head={head}

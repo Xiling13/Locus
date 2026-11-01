@@ -111,6 +111,13 @@ export const Clock = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const Retry = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M19.5 12a7.5 7.5 0 11-2.2-5.3" />
+    <path d="M19.5 4.5v4h-4" />
+  </svg>
+);
+
 export const Check = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M5 12.5l4.5 4.5L19 7.5" />

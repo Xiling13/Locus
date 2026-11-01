@@ -357,12 +357,15 @@ export function InlineEdit({
   className = "",
   label,
   ref,
+  bare,
 }: {
   value: string;
   onSave: (v: string) => void;
   className?: string;
   label: string;
   ref?: Ref<InlineEditHandle>;
+  /** No pencil: something else next to the text signals it can be changed. */
+  bare?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -404,12 +407,14 @@ export function InlineEdit({
       className={`group flex min-w-0 max-w-full items-baseline gap-2 text-left ${className}`}
     >
       <span className="min-w-0 break-words">{value}</span>
-      <Pencil
-        width="0.5em"
-        height="0.5em"
-        strokeWidth={2.4}
-        className="shrink-0 translate-y-[-0.1em] text-mute transition group-active:text-ink"
-      />
+      {!bare && (
+        <Pencil
+          width="0.5em"
+          height="0.5em"
+          strokeWidth={2.4}
+          className="shrink-0 translate-y-[-0.1em] text-mute transition group-active:text-ink"
+        />
+      )}
     </button>
   );
 }

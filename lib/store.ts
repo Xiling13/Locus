@@ -14,6 +14,7 @@ type State = {
   removeSpace: (id: string) => void;
   renameSpace: (id: string, name: string) => void;
   renameItem: (spaceId: string, objectId: string, label: string) => void;
+  addItem: (spaceId: string, object: LedgerObject) => void;
   addAudit: (spaceId: string, audit: Audit) => void;
   resolveItem: (spaceId: string, auditId: string, itemId: string, r: DiffItem["resolution"]) => void;
   pushCommit: (spaceId: string, commit: Commit, fromAudit?: string, untracked?: LedgerObject[]) => void;
@@ -53,6 +54,13 @@ export const useLocus = create<State>()(
               ...a,
               items: a.items.map((i) => (i.objectId === objectId ? { ...i, label } : i)),
             })),
+          })),
+        })),
+      addItem: (spaceId, object) =>
+        setState((s) => ({
+          spaces: mapSpace(s.spaces, spaceId, (sp) => ({
+            ...sp,
+            commits: sp.commits.map((c) => (c.id === sp.headId ? { ...c, objects: [...c.objects, object] } : c)),
           })),
         })),
       addAudit: (spaceId, audit) =>
