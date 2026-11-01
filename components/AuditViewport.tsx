@@ -1,6 +1,14 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   TransformComponent,
   TransformWrapper,
@@ -25,13 +33,19 @@ export const KIND_COLOR = {
   moved: "var(--color-move)",
 };
 
+const KIND_DOT = {
+  removed: "bg-miss",
+  added: "bg-new",
+  moved: "bg-move",
+};
+
 type Props = {
   current: string;
   base: string;
   aspect: number;
   items: DiffItem[];
   selected: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
 };
 
 export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditViewport(
@@ -41,6 +55,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
   const wrap = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const zoom = useRef<ReactZoomPanPinchRef>(null);
+  const tap = useRef<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [showBase, setShowBase] = useState(false);
   const [focus, setFocus] = useState<BBox | null>(null);
@@ -96,7 +111,24 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
     },
   }));
 
-  const dim = (id: string) => (selected && selected !== id ? 0 : 1);
+  function onPointerDown(e: ReactPointerEvent) {
+    if (e.button !== 0) return;
+    tap.current = { x: e.clientX, y: e.clientY };
+  }
+
+  function onPointerUp(e: ReactPointerEvent) {
+    const start = tap.current;
+    tap.current = null;
+    if (!start || !selected) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (dx * dx + dy * dy > 36) return;
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    if (t.closest("button.draw")) return;
+    if (t.closest(".glass")) return;
+    onSelect(null);
+  }
 
   return (
     <div ref={wrap} className="relative size-full overflow-hidden bg-sunk">
@@ -112,13 +144,20 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
           zoomAnimation={{ animationTime: 320, animationType: "easeOutCubic" }}
           autoAlignment={{ animationTime: 320, velocityAlignmentTime: 420, animationType: "easeOutCubic" }}
           velocityAnimation={{ animationTime: 420, animationType: "easeOutCubic" }}
+          panning={{ excluded: ["draw"] }}
           onTransform={(_, s) => content.current?.style.setProperty("--k", String(1 / s.scale))}
         >
           <TransformComponent
             wrapperStyle={{ width: "100%", height: "100%" }}
             contentStyle={{ width: size.w, height: size.h }}
           >
-            <div ref={content} className="relative" style={{ width: size.w, height: size.h }}>
+            <div
+              ref={content}
+              className="relative"
+              style={{ width: size.w, height: size.h }}
+              onPointerDown={onPointerDown}
+              onPointerUp={onPointerUp}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={current} alt="" draggable={false} className="absolute inset-0 size-full object-cover" />
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -126,7 +165,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
                 src={base}
                 alt=""
                 draggable={false}
-                className="absolute inset-0 size-full object-cover transition-opacity duration-300"
+                className="pointer-events-none absolute inset-0 size-full object-cover transition-opacity duration-300"
                 style={{ opacity: showBase ? 1 : 0 }}
               />
 
@@ -136,12 +175,12 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
                 className="pointer-events-none absolute inset-0 size-full overflow-visible"
               >
                 {items
-                  .filter((i) => i.kind === "moved" && i.from && i.to)
+                  .filter((i) => i.kind === "moved" && i.from && i.to && selected === i.id)
                   .map((i) => {
                     const [ax, ay] = center(i.from!);
                     const [bx, by] = center(i.to!);
                     return (
-                      <g key={i.id} style={{ opacity: dim(i.id) }} className="transition-opacity duration-300">
+                      <g key={i.id}>
                         <line
                           x1={ax * 100}
                           y1={ay * 100}
@@ -175,8 +214,8 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
                   item={i}
                   base={base}
                   showBase={showBase}
-                  opacity={dim(i.id)}
                   active={selected === i.id}
+                  hideDot={!!selected}
                   onClick={() => onSelect(i.id)}
                 />
               ))}
@@ -225,61 +264,87 @@ function Mark({
   item,
   base,
   showBase,
-  opacity,
   active,
+  hideDot,
   onClick,
 }: {
   item: DiffItem;
   base: string;
   showBase: boolean;
-  opacity: number;
   active: boolean;
+  hideDot: boolean;
   onClick: () => void;
 }) {
   const color = KIND_COLOR[item.kind];
   const occluded = item.confidence === "occluded";
   const found = item.resolution === "found";
   const box = (item.kind === "removed" ? item.from : item.to)!;
+  const [cx, cy] = center(box);
   const stroke = `calc(2.5px * var(--k, 1))`;
 
   return (
     <>
-      {item.kind === "moved" && item.from && (
+      {/* Default: a small status dot. Hidden entirely while any item is selected. */}
+      <button
+        type="button"
+        aria-label={item.label}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        className="draw absolute z-20 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center transition-[opacity,transform] duration-300 active:scale-75"
+        style={{
+          left: `${cx * 100}%`,
+          top: `${cy * 100}%`,
+          opacity: hideDot ? 0 : found ? 0.4 : 1,
+          pointerEvents: hideDot ? "none" : undefined,
+        }}
+      >
+        <span
+          className={`size-2.5 rounded-full ring-2 ring-white shadow-[0_1px_4px_rgb(0_0_0/0.28)] ${KIND_DOT[item.kind]}`}
+        />
+      </button>
+
+      {active && item.kind === "moved" && item.from && (
         <div
-          className="pointer-events-none absolute rounded-[6px] transition-opacity duration-300"
+          className="pointer-events-none absolute rounded-[6px]"
           style={{
             ...pct(item.from),
-            opacity: opacity * 0.8,
+            opacity: 0.8,
             outline: `${stroke} dashed var(--color-move)`,
           }}
         />
       )}
-      <button
-        type="button"
-        onClick={onClick}
-        className="draw absolute rounded-[6px] transition-opacity duration-300"
-        style={{
-          ...pct(box),
-          opacity: found ? opacity * 0.35 : opacity,
-          pointerEvents: opacity ? undefined : "none",
-          outline: `${stroke} ${occluded ? "dashed" : "solid"} ${color}`,
-          zIndex: active ? 3 : 1,
-        }}
-      >
-        {item.kind === "removed" && !showBase && (
-          <span
-            className="absolute inset-0 rounded-[6px] saturate-[0.5]"
-            style={{
-              backgroundImage: `url(${base})`,
-              backgroundSize: `${100 / box.w}% ${100 / box.h}%`,
-              backgroundPosition: `${(box.x / (1 - box.w)) * 100}% ${(box.y / (1 - box.h)) * 100}%`,
-              opacity: occluded ? 0.35 : 0.75,
-            }}
-          />
-        )}
-        {occluded && <span className="hatch absolute inset-0 rounded-[6px] opacity-70" />}
-        {item.kind === "added" && <span className="absolute inset-0 rounded-[6px] bg-new/15" />}
-        {active && (
+
+      {active && (
+        <button
+          type="button"
+          aria-label={item.label}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          className="draw absolute rounded-[6px]"
+          style={{
+            ...pct(box),
+            outline: `${stroke} ${occluded ? "dashed" : "solid"} ${color}`,
+            opacity: found ? 0.35 : 1,
+            zIndex: 3,
+          }}
+        >
+          {item.kind === "removed" && !showBase && (
+            <span
+              className="absolute inset-0 rounded-[6px] saturate-[0.5]"
+              style={{
+                backgroundImage: `url(${base})`,
+                backgroundSize: `${100 / box.w}% ${100 / box.h}%`,
+                backgroundPosition: `${(box.x / (1 - box.w)) * 100}% ${(box.y / (1 - box.h)) * 100}%`,
+                opacity: occluded ? 0.35 : 0.75,
+              }}
+            />
+          )}
+          {occluded && <span className="hatch absolute inset-0 rounded-[6px] opacity-70" />}
+          {item.kind === "added" && <span className="absolute inset-0 rounded-[6px] bg-new/15" />}
           <span
             className={`absolute bottom-full left-0 origin-bottom-left whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold ${
               item.kind === "added" ? "text-white" : "text-ink"
@@ -288,8 +353,8 @@ function Mark({
           >
             {item.label}
           </span>
-        )}
-      </button>
+        </button>
+      )}
     </>
   );
 }

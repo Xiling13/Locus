@@ -82,6 +82,29 @@ function Report({
     (i) => i.kind === "removed" && i.confidence === "occluded" && !i.resolution,
   ).length;
 
+  function revealRow(id: string, fully: boolean) {
+    const row = document.getElementById(`row-${id}`);
+    const sheet = row?.closest<HTMLElement>("section");
+    if (!row || !sheet) return;
+    const pad = 12;
+    const rowRect = row.getBoundingClientRect();
+    const sheetRect = sheet.getBoundingClientRect();
+    if (!fully) {
+      // Pin the card near the top of the sheet so its expanded body has room below.
+      sheet.scrollTo({ top: sheet.scrollTop + (rowRect.top - sheetRect.top) - pad, behavior: "smooth" });
+      return;
+    }
+    if (rowRect.bottom <= sheetRect.bottom - pad && rowRect.top >= sheetRect.top + pad) return;
+    if (rowRect.top < sheetRect.top + pad) {
+      sheet.scrollBy({ top: rowRect.top - sheetRect.top - pad, behavior: "smooth" });
+      return;
+    }
+    // Expanded body spilled past the fold — scroll just enough, without hiding the header.
+    const overflow = rowRect.bottom - sheetRect.bottom + pad;
+    const room = rowRect.top - sheetRect.top - pad;
+    sheet.scrollBy({ top: Math.min(overflow, Math.max(0, room)), behavior: "smooth" });
+  }
+
   function select(id: string | null, from: "list" | "canvas") {
     const next = id === null || selected === id ? null : id;
     setSelected(next);
@@ -89,9 +112,9 @@ function Report({
     viewport.current?.focus(item);
     if (item && from === "canvas") {
       if (filter && item.kind !== filter) setFilter(null);
-      requestAnimationFrame(() =>
-        document.getElementById(`row-${item.id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
-      );
+      // After paint / filter clear, pin the row; after expand animation, keep the body in view.
+      window.setTimeout(() => revealRow(item.id, false), 50);
+      window.setTimeout(() => revealRow(item.id, true), 460);
     }
   }
 
@@ -446,7 +469,7 @@ function MovedDetail({ item, hint }: { item: DiffItem; hint?: string }) {
       rows={[
         ["Was", cap(region(item.from!))],
         ["Current", cap(region(item.to!))],
-        ...(hint ? ([["Usually", hint]] as [string, string][]) : []),
+        ...(hint ? ([["Before", hint]] as [string, string][]) : []),
       ]}
     />
   );
