@@ -152,7 +152,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
       </div>
 
       <section className="px-5 pt-5">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <InlineEdit
             ref={title}
             bare
@@ -165,7 +165,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
             type="button"
             aria-label="Space options"
             onClick={() => setMenu(true)}
-            className="grid size-9 shrink-0 place-items-center text-mute transition-[transform,color] duration-200 active:scale-90 active:text-ink active:duration-75"
+            className="flex h-9 w-9 shrink-0 items-center justify-start text-mute transition-[transform,color] duration-200 active:scale-90 active:text-ink active:duration-75"
           >
             <More width={18} height={18} />
           </button>
@@ -295,10 +295,10 @@ function SpaceMenu({ name, onRename, onDelete }: { name: string; onRename: () =>
           Its photos, items and check history will be removed from this device.
         </p>
         <div className="mt-6 flex gap-2">
-          <Button tone="sunk" className="flex-1" onClick={() => setConfirm(false)}>
+          <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={() => setConfirm(false)}>
             Keep
           </Button>
-          <Button tone="miss" className="flex-1" onClick={onDelete}>
+          <Button tone="miss" className="min-w-0 flex-1 basis-0" onClick={onDelete}>
             Delete
           </Button>
         </div>
@@ -370,15 +370,15 @@ function ItemSheet({
               onSave={(v) => renameItem(space.id, item.id, v)}
               className="text-[28px] font-bold leading-tight tracking-[-0.035em]"
             />
-            <dl className="mt-5 space-y-4 rounded-[20px] bg-paper p-4">
+            <dl className="mt-5 rounded-[20px] bg-paper p-4">
               <div>
-                <dt className="text-[13px] font-medium text-mute">Where it lives</dt>
-                <dd className="mt-0.5 text-[16px] leading-snug">{item.hint}</dd>
+                <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Where it lives</dt>
+                <dd className="mt-1.5 text-[17px] font-semibold leading-snug tracking-[-0.01em]">{item.hint}</dd>
               </div>
-              <div>
-                <dt className="text-[13px] font-medium text-mute">Last seen</dt>
-                <dd className="mt-0.5 text-[16px]">
-                  {stamp(item.seenAt)} <span className="text-soft">· {ago(item.seenAt)}</span>
+              <div className="mt-4 border-t border-line/60 pt-3">
+                <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Last seen</dt>
+                <dd className="mt-1 text-[14px] leading-snug text-soft">
+                  {stamp(item.seenAt)} · {ago(item.seenAt)}
                 </dd>
               </div>
             </dl>
@@ -386,13 +386,13 @@ function ItemSheet({
           <div className="mt-5 flex gap-2">
             {missingCheck ? (
               <>
-                <Button tone="sunk" className="flex-1" onClick={close}>
+                <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={close}>
                   Close
                 </Button>
                 <Link
                   href={`/spaces/${space.id}/audits/${missingCheck.id}?item=rm-${item.id}`}
                   transitionTypes={nav("forward")}
-                  className={buttonClass("ink", "flex-[1.4]")}
+                  className={buttonClass("ink", "min-w-0 flex-1 basis-0")}
                 >
                   Open check
                 </Link>

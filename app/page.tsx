@@ -62,11 +62,11 @@ export default function Home() {
       </div>
 
       <nav className="home-actions pb-safe flex shrink-0 gap-2 px-5 pt-6">
-        <Link href="/search" transitionTypes={nav("forward")} className={buttonClass("card", "flex-1")}>
+        <Link href="/search" transitionTypes={nav("forward")} className={buttonClass("card", "min-w-0 flex-1 basis-0")}>
           <Search width={20} height={20} />
           Search
         </Link>
-        <Link href="/spaces/new" transitionTypes={nav("up")} className={buttonClass("ink", "flex-1")}>
+        <Link href="/spaces/new" transitionTypes={nav("up")} className={buttonClass("ink", "min-w-0 flex-1 basis-0")}>
           <Plus width={20} height={20} />
           New space
         </Link>

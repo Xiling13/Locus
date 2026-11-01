@@ -51,10 +51,10 @@ export function NameItem({
         className="mt-5 w-full bg-transparent px-1 text-[28px] font-bold leading-tight tracking-[-0.035em] outline-none placeholder:text-mute/60"
       />
       <div className="mt-6 flex gap-2">
-        <Button tone="sunk" className="flex-1" onClick={onRedo}>
+        <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={onRedo}>
           Redraw
         </Button>
-        <Button type="submit" className="flex-1" disabled={!label}>
+        <Button type="submit" className="min-w-0 flex-1 basis-0" disabled={!label}>
           Add item
         </Button>
       </div>

@@ -180,8 +180,8 @@ function Browse({ spaces }: { spaces: Space[] }) {
         const missing = new Set(missingOf(s).map((m) => m.objectId));
         const items = headOf(s).objects;
         const overflow = items.length > 6;
-        const shown = overflow ? items.slice(0, 5) : items;
-        const extra = overflow ? items.length - 5 : 0;
+        const shown = overflow ? items.slice(0, 6) : items;
+        const extra = overflow ? items.length - 6 : 0;
         return (
           <section key={s.id} className={intro ? "rise" : ""} style={{ animationDelay: `${si * 60}ms` }}>
             <div className="flex items-baseline justify-between px-5">
@@ -220,9 +220,10 @@ function Browse({ spaces }: { spaces: Space[] }) {
                     transitionTypes={nav("forward")}
                     className="block transition-transform duration-300 active:scale-95 active:duration-100"
                   >
-                    <span className="grid aspect-square w-full place-items-center rounded-[18px] bg-card">
-                      <span className="px-1 text-center text-[12px] font-medium leading-tight text-soft">
-                        +{extra} more →
+                    <span className="grid aspect-square w-full place-items-center rounded-[18px] border-2 border-dashed border-line">
+                      <span className="flex flex-col items-center gap-0.5 px-1 text-center">
+                        <span className="text-[20px] font-medium leading-none tracking-[-0.03em]">+{extra}</span>
+                        <span className="text-[11px] font-medium leading-tight text-soft">more →</span>
                       </span>
                     </span>
                   </Link>

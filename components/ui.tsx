@@ -80,7 +80,7 @@ const sizes = {
 };
 
 export const buttonClass = (tone: Tone = "ink", className = "", size: keyof typeof sizes = "lg") =>
-  `flex w-full items-center justify-center gap-2.5 rounded-full font-semibold tracking-[-0.01em] transition-[transform,background-color,color,filter,opacity] duration-200 active:scale-[0.97] active:duration-75 disabled:pointer-events-none disabled:opacity-40 ${sizes[size]} ${tones[tone]} ${className}`;
+  `flex items-center justify-center gap-2.5 rounded-full font-semibold tracking-[-0.01em] transition-[transform,background-color,color,filter,opacity] duration-200 active:scale-[0.97] active:duration-75 disabled:pointer-events-none disabled:opacity-40 ${/\bflex-1\b/.test(className) ? "" : "w-full"} ${sizes[size]} ${tones[tone]} ${className}`;
 
 export function Button({
   tone = "ink",

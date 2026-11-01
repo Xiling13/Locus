@@ -286,11 +286,11 @@ export default function NewSpace() {
       </div>
 
       <div className="mt-6 flex gap-2">
-        <Button tone="card" className="flex-1" onClick={() => libraryRef.current?.click()}>
+        <Button tone="card" className="min-w-0 flex-1 basis-0" onClick={() => libraryRef.current?.click()}>
           <Photos width={20} height={20} />
           Photos
         </Button>
-        <Button className="flex-1" onClick={() => cameraRef.current?.click()}>
+        <Button className="min-w-0 flex-1 basis-0" onClick={() => cameraRef.current?.click()}>
           <Camera width={20} height={20} />
           Take photo
         </Button>

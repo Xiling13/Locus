@@ -228,10 +228,10 @@ function Viewfinder({
       <div className="pb-safe flex h-[188px] shrink-0 flex-col justify-center px-5">
         {shot ? (
           <div className="flex gap-2">
-            <Button tone="smoke" className="min-w-0 flex-1" onClick={onRetake}>
+            <Button tone="smoke" className="min-w-0 flex-1 basis-0" onClick={onRetake}>
               Retake
             </Button>
-            <Button tone="card" className="min-w-0 flex-1" onClick={() => onCompare(shot)}>
+            <Button tone="card" className="min-w-0 flex-1 basis-0" onClick={() => onCompare(shot)}>
               Compare
             </Button>
           </div>

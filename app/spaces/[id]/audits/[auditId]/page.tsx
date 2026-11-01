@@ -58,6 +58,7 @@ function Report({
 }) {
   const router = useRouter();
   const resolveItem = useLocus((s) => s.resolveItem);
+  const untrackItem = useLocus((s) => s.untrackItem);
   const pushCommit = useLocus((s) => s.pushCommit);
   const viewport = useRef<ViewportHandle>(null);
   const [filter, setFilter] = useState<DiffKind | null>(null);
@@ -175,6 +176,14 @@ function Report({
               open={selected === i.id}
               onToggle={() => select(i.id, "list")}
               onResolve={(r) => resolveItem(space.id, audit.id, i.id, r)}
+              onUntrack={
+                i.kind === "removed" && i.objectId
+                  ? () => {
+                      select(null, "list");
+                      untrackItem(space.id, i.objectId!);
+                    }
+                  : undefined
+              }
               track={
                 i.kind === "added" && !audit.committedAs
                   ? {
@@ -258,10 +267,10 @@ function DeleteCheck({
         {later > 0 && ` The ${plural(later, "newer check")} compared against it will go too.`}
       </p>
       <div className="mt-6 flex gap-2">
-        <Button tone="sunk" className="flex-1" onClick={onKeep}>
+        <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={onKeep}>
           Keep
         </Button>
-        <Button tone="miss" className="flex-1" onClick={onDelete}>
+        <Button tone="miss" className="min-w-0 flex-1 basis-0" onClick={onDelete}>
           Delete
         </Button>
       </div>
@@ -286,6 +295,7 @@ function Row({
   open,
   onToggle,
   onResolve,
+  onUntrack,
   track,
 }: {
   item: DiffItem;
@@ -293,6 +303,7 @@ function Row({
   open: boolean;
   onToggle: () => void;
   onResolve: (r: DiffItem["resolution"]) => void;
+  onUntrack?: () => void;
   track?: { on: boolean; toggle: () => void };
 }) {
   const ledger = item.objectId ? base.objects.find((o) => o.id === item.objectId) : undefined;
@@ -336,7 +347,9 @@ function Row({
           inert={!open}
         >
           <div className="px-4 pb-4 pt-1">
-            {item.kind === "removed" && ledger && <MissingDetail item={item} ledger={ledger} onResolve={onResolve} />}
+            {item.kind === "removed" && ledger && (
+              <MissingDetail item={item} ledger={ledger} onResolve={onResolve} onUntrack={onUntrack} />
+            )}
             {item.kind === "moved" && <MovedDetail item={item} hint={ledger?.hint} />}
             {item.kind === "added" && (
               <p className="rounded-[20px] bg-paper p-4 text-[15px] leading-relaxed text-soft">
@@ -358,12 +371,19 @@ function Row({
 }
 
 function Facts({ rows }: { rows: [string, ReactNode][] }) {
+  const [primary, ...rest] = rows;
   return (
-    <dl className="space-y-3 rounded-[20px] bg-paper p-4">
-      {rows.map(([k, v]) => (
-        <div key={k}>
-          <dt className="text-[13px] font-medium text-mute">{k}</dt>
-          <dd className="mt-0.5 text-[15px] leading-snug">{v}</dd>
+    <dl className="rounded-[20px] bg-paper p-4">
+      {primary && (
+        <div>
+          <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">{primary[0]}</dt>
+          <dd className="mt-1.5 text-[16px] font-semibold leading-snug tracking-[-0.01em]">{primary[1]}</dd>
+        </div>
+      )}
+      {rest.map(([k, v]) => (
+        <div key={k} className="mt-4 border-t border-line/60 pt-3">
+          <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">{k}</dt>
+          <dd className="mt-1 text-[14px] leading-snug text-soft">{v}</dd>
         </div>
       ))}
     </dl>
@@ -374,10 +394,12 @@ function MissingDetail({
   item,
   ledger,
   onResolve,
+  onUntrack,
 }: {
   item: DiffItem;
   ledger: Commit["objects"][number];
   onResolve: (r: DiffItem["resolution"]) => void;
+  onUntrack?: () => void;
 }) {
   const occluded = item.confidence === "occluded";
   return (
@@ -395,18 +417,21 @@ function MissingDetail({
       )}
       {!item.resolution ? (
         <div className="mt-4 flex gap-2">
-          <Button tone="sunk" size="md" className="flex-1" onClick={() => onResolve("found")}>
+          <Button tone="sunk" size="md" className="min-w-0 flex-1 basis-0" onClick={() => onResolve("found")}>
             Found it
           </Button>
-          {occluded && (
-            <Button tone="miss" size="md" className="flex-1" onClick={() => onResolve("missing")}>
-              It’s gone
-            </Button>
-          )}
+          <Button tone="miss" size="md" className="min-w-0 flex-1 basis-0" onClick={() => onResolve("missing")}>
+            It’s gone
+          </Button>
         </div>
       ) : (
         <Button tone="clear" size="md" className="mt-2" onClick={() => onResolve(undefined)}>
           Undo
+        </Button>
+      )}
+      {onUntrack && (
+        <Button tone="clear" size="md" className="mt-1" onClick={onUntrack}>
+          Stop tracking
         </Button>
       )}
     </>
