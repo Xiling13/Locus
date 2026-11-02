@@ -349,7 +349,7 @@ function statusOf(item: DiffItem) {
   if (item.kind === "removed") {
     if (item.resolution === "found") return { text: "Found", cls: "text-soft" };
     if (item.resolution === "missing") return { text: "Gone", cls: "text-miss-deep" };
-    if (item.confidence === "occluded") return { text: "Maybe hidden · take a look", cls: "text-miss-deep" };
+    if (item.confidence === "occluded") return { text: "Maybe hidden", cls: "text-miss-deep" };
     return { text: "Missing", cls: "text-miss-deep" };
   }
   if (item.kind === "moved") return { text: `Moved ${direction(item.from!, item.to!).dir}`, cls: "text-move-deep" };

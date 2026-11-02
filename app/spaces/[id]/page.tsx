@@ -71,7 +71,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
   const missing = missingOf(space);
   const missingIds = new Set(missing.map((m) => m.objectId));
   // Hero is always the saved current photo. Missing items that left the ledger after Save
-  // stay in the list and as orange ghost pins at their last-known spot.
+  // stay in the list; spatial missing markers live on the check report, not the hero.
   const base = last ? (space.commits.find((c) => c.id === last.baseCommitId) ?? head) : head;
   const headIds = new Set(head.objects.map((o) => o.id));
   const missingExtras = missing.flatMap((m) => {
@@ -85,20 +85,11 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
     if (am !== bm) return am - bm;
     return new Date(b.seenAt).getTime() - new Date(a.seenAt).getTime();
   });
-  const pins = [
-    ...head.objects.map((o) => ({
-      id: o.id,
-      bbox: o.bbox,
-      label: o.label,
-      missing: missingIds.has(o.id),
-    })),
-    ...((drawing || outline) ? [] : missingExtras).map((o) => ({
-      id: o.id,
-      bbox: o.bbox,
-      label: o.label,
-      missing: true as const,
-    })),
-  ];
+  const pins = head.objects.map((o) => ({
+    id: o.id,
+    bbox: o.bbox,
+    label: o.label,
+  }));
 
   function startAdding() {
     setActive(null);
@@ -218,16 +209,11 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
                 onClick={() => setActive(o.id)}
                 className="block w-full text-left transition-transform duration-300 active:scale-95 active:duration-100"
               >
-                <span className="relative block">
-                  <span
-                    aria-hidden
-                    className="block aspect-square w-full rounded-[22px] bg-sunk bg-cover bg-center"
-                    style={{ backgroundImage: cssUrl(o.crop) }}
-                  />
-                  {missingIds.has(o.id) && (
-                    <span className="absolute -right-0.5 -top-0.5 size-3.5 rounded-full bg-miss ring-[3px] ring-paper" />
-                  )}
-                </span>
+                <span
+                  aria-hidden
+                  className="block aspect-square w-full rounded-[22px] bg-sunk bg-cover bg-center"
+                  style={{ backgroundImage: cssUrl(o.crop) }}
+                />
                 <span className="mt-2 line-clamp-2 block text-[14px] font-medium leading-snug">{o.label}</span>
               </button>
             </li>
