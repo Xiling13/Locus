@@ -4,7 +4,7 @@ import { del, get, set } from "idb-keyval";
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { buildCommit, detect, recommit, runAudit, shortId } from "./engine";
+import { buildCommit, detect, shortId } from "./engine";
 import type { Audit, Commit, DiffItem, DiffKind, LedgerObject, Space } from "./types";
 
 type State = {
@@ -150,8 +150,8 @@ export const useLocus = create<State>()(
     {
       name: "locus",
       storage: idb,
-      // Bump so demo reseeds with newest-first commits (matches pushCommit).
-      version: 7,
+      // Bump so demo reseeds as baseline-only (no pre-run check).
+      version: 8,
       migrate: () => ({ spaces: [], seeded: false }) as unknown as State,
     },
   ),
@@ -238,22 +238,14 @@ export function ensureDemo() {
       const commit = await buildCommit(image, detections, { parentId: null, message: "Initial commit" });
       commit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString();
       commit.objects.forEach((o) => (o.seenAt = commit.createdAt));
-      const current = { src: "/demo/bench-current.jpg", width: 864, height: 1152 };
-      const audit = await runAudit(commit, current);
-      audit.createdAt = new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString();
-      // Checks are normally saved; keep the glanceable missing UI from that check.
-      const { commit: saved, untracked } = await recommit(commit, audit);
-      saved.createdAt = audit.createdAt;
-      audit.committedAs = saved.id;
+      // Baseline only — Check now + Use sample photo still available via demo: true.
       useLocus.getState().addSpace({
         id: shortId(),
         name: "Workbench",
         createdAt: commit.createdAt,
-        headId: saved.id,
-        // Newest first — same order pushCommit keeps.
-        commits: [saved, commit],
-        audits: [audit],
-        untracked,
+        headId: commit.id,
+        commits: [commit],
+        audits: [],
         demo: true,
       });
     } catch (err) {

@@ -36,7 +36,13 @@ export default function Home() {
       </header>
 
       <h1 className={`home-display display mt-6 shrink-0 px-5 text-[52px] ${intro ? "rise" : ""}`}>
-        {missing > 0 ? (
+        {spaces.length === 0 ? (
+          <>
+            Add an image
+            <br />
+            <span className="text-mute">to begin</span>
+          </>
+        ) : missing > 0 ? (
           <>
             {plural(missing, "thing")}
             <br />
@@ -76,6 +82,39 @@ export default function Home() {
   );
 }
 
+function NewSpaceCard() {
+  // Match SpaceCard outer size (p-2 + 4:5 + foot); center the CTA in the full card like the deck.
+  return (
+    <Link
+      href="/spaces/new"
+      transitionTypes={nav("up")}
+      className="relative block rounded-[34px] border-2 border-dashed border-line p-2 text-center transition-transform duration-300 active:scale-[0.97] active:duration-100"
+    >
+      <span className="block aspect-[4/5] rounded-[27px]" aria-hidden />
+      <span className="home-card-foot invisible flex items-end gap-3 px-3 pb-3 pt-4" aria-hidden>
+        <span className="min-w-0 flex-1">
+          <span className="home-card-name block truncate text-[26px] font-bold leading-tight tracking-[-0.035em]">
+            New space
+          </span>
+          <span className="home-card-meta mt-1 block truncate text-[14px]">0 items</span>
+        </span>
+        <span className="home-card-avatars grid size-10 place-items-center rounded-full">
+          <Chevron width={18} height={18} />
+        </span>
+      </span>
+      <span className="absolute inset-0 flex -translate-y-3 flex-col items-center justify-center gap-4 px-4">
+        <span className="grid size-16 place-items-center rounded-full bg-ink text-paper">
+          <Plus width={26} height={26} />
+        </span>
+        <span className="text-[22px] font-bold tracking-[-0.03em]">New space</span>
+        <span className="max-w-[200px] text-[14px] leading-snug text-soft">
+          A desk, a drawer, a toolbox — anywhere things go missing.
+        </span>
+      </span>
+    </Link>
+  );
+}
+
 function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
   const rail = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; left: number } | null>(null);
@@ -103,12 +142,14 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
   }, []);
 
   useEffect(() => {
+    if (count <= 1) return;
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, [update, count]);
 
   useEffect(() => {
+    if (count <= 1) return;
     const el = rail.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
@@ -118,12 +159,28 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, []);
+  }, [count]);
 
   const go = (i: number) => {
     const card = rail.current?.children[i] as HTMLElement | undefined;
     card?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   };
+
+  // Solo card: same deck slot size, centered, no tilt / pager.
+  if (count === 1) {
+    return (
+      <section className="home-deck mt-5 flex min-h-0 flex-1 flex-col justify-center pb-4">
+        <div className="home-rail flex justify-center px-[11%] pb-14 pt-5">
+          <div
+            className={`w-[78%] max-w-[360px] shrink-0 ${intro ? "rise" : ""}`}
+            style={{ animationDelay: "60ms" }}
+          >
+            <NewSpaceCard />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="home-deck mt-5 flex min-h-0 flex-1 flex-col justify-center pb-4">
@@ -168,19 +225,7 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
           </DeckCard>
         ))}
         <DeckCard index={spaces.length} intro={intro}>
-          <Link
-            href="/spaces/new"
-            transitionTypes={nav("up")}
-            className="flex h-full flex-col items-center justify-center gap-4 rounded-[34px] border-2 border-dashed border-line text-center transition-transform duration-300 active:scale-[0.97] active:duration-100"
-          >
-            <span className="grid size-16 place-items-center rounded-full bg-ink text-paper">
-              <Plus width={26} height={26} />
-            </span>
-            <span className="text-[22px] font-bold tracking-[-0.03em]">New space</span>
-            <span className="max-w-[200px] text-[14px] leading-snug text-soft">
-              A desk, a drawer, a toolbox — anywhere things go missing.
-            </span>
-          </Link>
+          <NewSpaceCard />
         </DeckCard>
       </div>
 
