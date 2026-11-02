@@ -208,7 +208,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
                   })}
               </svg>
 
-              {items.map((i) => (
+              {items.map((i, idx) => (
                 <Mark
                   key={i.id}
                   item={i}
@@ -216,6 +216,7 @@ export const AuditViewport = forwardRef<ViewportHandle, Props>(function AuditVie
                   showBase={showBase}
                   active={selected === i.id}
                   hideDot={!!selected}
+                  delay={idx * 40 + 150}
                   onClick={() => onSelect(i.id)}
                 />
               ))}
@@ -266,6 +267,7 @@ function Mark({
   showBase,
   active,
   hideDot,
+  delay,
   onClick,
 }: {
   item: DiffItem;
@@ -273,6 +275,7 @@ function Mark({
   showBase: boolean;
   active: boolean;
   hideDot: boolean;
+  delay: number;
   onClick: () => void;
 }) {
   const color = KIND_COLOR[item.kind];
@@ -292,12 +295,13 @@ function Mark({
           e.stopPropagation();
           onClick();
         }}
-        className="draw absolute z-20 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center transition-[opacity,transform] duration-300 active:scale-75"
+        className="pop absolute z-20 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center transition-[opacity,scale] duration-300 active:scale-75"
         style={{
           left: `${cx * 100}%`,
           top: `${cy * 100}%`,
           opacity: hideDot ? 0 : found ? 0.4 : 1,
           pointerEvents: hideDot ? "none" : undefined,
+          animationDelay: `${delay}ms`,
         }}
       >
         <span

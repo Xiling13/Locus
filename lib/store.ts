@@ -183,13 +183,8 @@ export const openCheck = (space: Space) =>
 export const missingOf = (space: Space) =>
   lastCheck(space)?.items.filter((i) => i.kind === "removed" && i.resolution !== "found") ?? [];
 
-/** Photo + items to show when glancing at what's missing (the check's base). */
-export function sceneOf(space: Space) {
-  const head = headOf(space);
-  const last = lastCheck(space);
-  if (!last || !missingOf(space).length) return head;
-  return space.commits.find((c) => c.id === last.baseCommitId) ?? head;
-}
+/** Current reference photo for a space (same as head). */
+export const sceneOf = headOf;
 
 /** Display order / priority: Missing > Moved > New. */
 export const KIND_ORDER: Record<DiffKind, number> = { removed: 0, moved: 1, added: 2 };

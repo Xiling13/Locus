@@ -424,13 +424,21 @@ async function labelBoxes(
   if (base?.length) {
     lines.push(
       "This is a later audit. Reuse an existing signature when the same physical object is still present.",
-      "Known ledger:",
+      "Position, crop, and angle may change — that is still the same object; do NOT mint a new signature.",
+      "Only invent a new signature when you are sure it is a different physical item.",
+      "Known ledger (approx box is 0–1000 grid [x,y,w,h]):",
       JSON.stringify(
         base.map((o) => ({
           signature: o.signature,
           label: o.label,
           category: o.category,
           traits: o.traits,
+          approx: [
+            Math.round(o.bbox.x * 1000),
+            Math.round(o.bbox.y * 1000),
+            Math.round(o.bbox.w * 1000),
+            Math.round(o.bbox.h * 1000),
+          ],
         })),
       ),
     );
