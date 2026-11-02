@@ -5,6 +5,11 @@ export type LoadedImage = { src: string; width: number; height: number };
 /** Every photo in the app is stored and shown at this width / height ratio. */
 export const FRAME = 3 / 4;
 
+/** CSS `url("...")` for inline styles. Escapes quotes/backslashes; keeps data/blob URLs intact. */
+export function cssUrl(src: string): string {
+  return `url("${src.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`;
+}
+
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();

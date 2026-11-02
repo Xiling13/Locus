@@ -29,7 +29,8 @@ import {
 } from "@/components/ui";
 import { manualObject } from "@/lib/engine";
 import { ago, plural, stamp } from "@/lib/format";
-import { headOf, lastCheck, missingOf, primaryDiff, sceneOf, useHydrated, useLocus, useSpace } from "@/lib/store";
+import { cssUrl } from "@/lib/image";
+import { glanceOf, headOf, lastCheck, missingOf, primaryDiff, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Audit, BBox, Commit, LedgerObject, Space } from "@/lib/types";
 
 export default function SpacePage({ params, searchParams }: PageProps<"/spaces/[id]">) {
@@ -66,27 +67,38 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
 
   const head = headOf(space);
   const last = lastCheck(space);
+  const glance = glanceOf(space);
   const missing = missingOf(space);
   const missingIds = new Set(missing.map((m) => m.objectId));
-  // When something is missing, show the check's base photo so orange dots land on where it was.
-  const scene = sceneOf(space);
-  // New items are drawn on the current photo, the one the next check compares against.
-  const photo = drawing || outline ? head : scene;
-  // Items added to the current photo since that check (drawn by hand, switched back on) aren't
-  // in the older scene; list them anyway, shown against the photo they were added on.
-  const sceneIds = new Set(scene.objects.map((o) => o.id));
-  const fresh =
-    scene === head || !last
-      ? []
-      : head.objects.filter(
-          (o) => !sceneIds.has(o.id) && !last.detections.some((d) => d.signature === o.signature),
-        );
-  const items = [...scene.objects, ...fresh].sort((a, b) => {
+  // Hero is always the saved current photo. Missing items that left the ledger after Save
+  // stay in the list and as orange ghost pins at their last-known spot.
+  const base = last ? (space.commits.find((c) => c.id === last.baseCommitId) ?? head) : head;
+  const headIds = new Set(head.objects.map((o) => o.id));
+  const missingExtras = missing.flatMap((m) => {
+    const o = base.objects.find((obj) => obj.id === m.objectId) ?? head.objects.find((obj) => obj.id === m.objectId);
+    if (!o || headIds.has(o.id)) return [];
+    return [{ ...o, bbox: m.from ?? o.bbox }];
+  });
+  const items = [...head.objects, ...missingExtras].sort((a, b) => {
     const am = missingIds.has(a.id) ? 0 : 1;
     const bm = missingIds.has(b.id) ? 0 : 1;
     if (am !== bm) return am - bm;
     return new Date(b.seenAt).getTime() - new Date(a.seenAt).getTime();
   });
+  const pins = [
+    ...head.objects.map((o) => ({
+      id: o.id,
+      bbox: o.bbox,
+      label: o.label,
+      missing: missingIds.has(o.id),
+    })),
+    ...((drawing || outline) ? [] : missingExtras).map((o) => ({
+      id: o.id,
+      bbox: o.bbox,
+      label: o.label,
+      missing: true as const,
+    })),
+  ];
 
   function startAdding() {
     setActive(null);
@@ -95,6 +107,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
   }
   const checkStatus = last ? primaryDiff(last.items) : null;
   const focus = items.find((o) => o.id === active);
+  const focusCommit = focus && headIds.has(focus.id) ? head : base;
   const intro = useIntro();
   const checkTone =
     checkStatus?.kind === "removed"
@@ -118,17 +131,12 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
         <div className="space-hero relative rounded-[34px] shadow-[0_22px_44px_-18px_rgb(0_0_0/0.28)]">
           <Shared name={`space-${space.id}`}>
             <ScenePhoto
-              src={photo.image}
-              width={photo.width}
-              height={photo.height}
+              src={glance.image}
+              width={glance.width}
+              height={glance.height}
               aspect={4 / 5}
               className="rounded-[34px]"
-              pins={photo.objects.map((o) => ({
-                id: o.id,
-                bbox: o.bbox,
-                label: o.label,
-                missing: photo === scene && missingIds.has(o.id),
-              }))}
+              pins={pins}
               active={active}
               onPick={(id) => setActive((a) => (a === id ? null : id))}
               onDraw={
@@ -176,7 +184,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
           </button>
         </div>
         <p className="mt-2 text-[15px] text-soft">
-          {plural(items.length, "item")} · photo from {stamp(scene.createdAt)}
+          {plural(items.length, "item")} · photo from {stamp(glance.createdAt)}
         </p>
 
         {last && (
@@ -214,7 +222,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
                   <span
                     aria-hidden
                     className="block aspect-square w-full rounded-[22px] bg-sunk bg-cover bg-center"
-                    style={{ backgroundImage: `url(${JSON.stringify(o.crop)})` }}
+                    style={{ backgroundImage: cssUrl(o.crop) }}
                   />
                   {missingIds.has(o.id) && (
                     <span className="absolute -right-0.5 -top-0.5 size-3.5 rounded-full bg-miss ring-[3px] ring-paper" />
@@ -245,7 +253,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
         <ItemSheet
           key={focus.id}
           space={space}
-          head={fresh.includes(focus) ? head : scene}
+          head={focusCommit}
           item={focus}
           missingCheck={missingIds.has(focus.id) ? last : undefined}
           onClose={() => setActive(null)}

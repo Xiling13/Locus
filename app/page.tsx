@@ -6,7 +6,8 @@ import { Chevron, Clock, Plus, Search } from "@/components/icons";
 import { Frame } from "@/components/Photo";
 import { Logo, nav, Pill, Round, Screen, Shared, Splash, buttonClass, useIntro } from "@/components/ui";
 import { ago, plural } from "@/lib/format";
-import { ensureDemo, headOf, missingOf, statusOf, useHydrated, useLocus } from "@/lib/store";
+import { cssUrl } from "@/lib/image";
+import { ensureDemo, glanceOf, headOf, missingOf, statusOf, useHydrated, useLocus } from "@/lib/store";
 import type { Space } from "@/lib/types";
 
 export default function Home() {
@@ -281,11 +282,9 @@ const statusTone = { removed: "miss", moved: "move", added: "new" } as const;
 
 function SpaceCard({ space }: { space: Space }) {
   const head = headOf(space);
-  const last = space.audits[0];
+  const glance = glanceOf(space);
   const missing = missingOf(space);
   const status = statusOf(space);
-  // Prefer the check photo when there are findings so the card matches the glanceable space view.
-  const shot = last && status.state !== "unchecked" && status.state !== "clear" ? last : null;
   const label =
     status.state === "unchecked"
       ? "Not checked yet"
@@ -308,9 +307,9 @@ function SpaceCard({ space }: { space: Space }) {
       <div className="relative">
         <Shared name={`space-${space.id}`}>
           <Frame
-            src={(shot ?? head).image}
-            width={(shot ?? head).width}
-            height={(shot ?? head).height}
+            src={glance.image}
+            width={glance.width}
+            height={glance.height}
             aspect={4 / 5}
             className="rounded-[27px]"
           />
@@ -329,7 +328,7 @@ function SpaceCard({ space }: { space: Space }) {
         <div className="min-w-0 flex-1">
           <div className="home-card-name truncate text-[26px] font-bold leading-tight tracking-[-0.035em]">{space.name}</div>
           <div className="home-card-meta mt-1 truncate text-[14px] text-soft">
-            {plural(head.objects.length, "item")} · {ago((last ?? head).createdAt)}
+            {plural(head.objects.length, "item")} · {ago(glance.createdAt)}
           </div>
         </div>
         {missing.length > 0 ? (
@@ -339,7 +338,7 @@ function SpaceCard({ space }: { space: Space }) {
                 key={m.id}
                 aria-hidden
                 className="size-10 rounded-full bg-cover bg-center ring-[3px] ring-card"
-                style={{ backgroundImage: `url(${JSON.stringify(m.crop)})` }}
+                style={{ backgroundImage: cssUrl(m.crop) }}
               />
             ))}
           </div>

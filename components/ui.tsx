@@ -11,6 +11,7 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
+import { cssUrl } from "@/lib/image";
 import type { Audit, Space } from "@/lib/types";
 import { Pencil } from "./icons";
 
@@ -131,7 +132,7 @@ export function Thumb({ src, className = "" }: { src: string; className?: string
     <span
       aria-hidden
       className={`block size-14 shrink-0 rounded-[18px] bg-sunk bg-cover bg-center ${className}`}
-      style={{ backgroundImage: `url(${JSON.stringify(src)})` }}
+      style={{ backgroundImage: cssUrl(src) }}
     />
   );
 }

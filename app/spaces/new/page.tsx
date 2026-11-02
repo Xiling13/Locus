@@ -51,8 +51,10 @@ export default function NewSpace() {
       return;
     }
     const n = plural(commit.objects.length, "item");
+    // Keep the bar moving (esp. for instant demo fixtures) before snapping to 100%.
+    await wait(Math.max(0, 2400 - (Date.now() - started)));
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: [n, "done", "done"][i] })) });
-    await wait(Math.max(600, 2400 - (Date.now() - started)));
+    await wait(600);
     startTransition(() => setStage({ k: "review", commit }));
   }
 

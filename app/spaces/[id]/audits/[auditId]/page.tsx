@@ -66,6 +66,7 @@ function Report({
   const [saving, setSaving] = useState(false);
   const [skip, setSkip] = useState<Set<string>>(new Set());
   const [confirm, setConfirm] = useState(false);
+  const [leavePrompt, setLeavePrompt] = useState(false);
   const deleteCheck = useLocus((s) => s.deleteCheck);
 
   const items = [...audit.items].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]);
@@ -124,11 +125,26 @@ function Report({
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function save() {
-    setSaving(true);
-    const { commit, untracked } = await recommit(base, audit, skip);
-    pushCommit(space.id, commit, audit.id, untracked);
+  function goBack() {
     router.push(`/spaces/${space.id}`, { transitionTypes: nav("back") });
+  }
+
+  function requestBack() {
+    if (audit.committedAs) goBack();
+    else setLeavePrompt(true);
+  }
+
+  async function save() {
+    if (audit.committedAs || saving) return;
+    setSaving(true);
+    try {
+      const { commit, untracked } = await recommit(base, audit, skip);
+      pushCommit(space.id, commit, audit.id, untracked);
+      goBack();
+    } catch (err) {
+      console.error(err);
+      setSaving(false);
+    }
   }
 
   function remove() {
@@ -157,7 +173,7 @@ function Report({
           </div>
         </Shared>
         <div className="pt-safe absolute left-4 top-0">
-          <Round href={`/spaces/${space.id}`} aria-label="Back">
+          <Round aria-label="Back" onClick={requestBack}>
             <Back />
           </Round>
         </div>
@@ -259,6 +275,34 @@ function Report({
       {confirm && (
         <Sheet label="Delete check" onClose={() => setConfirm(false)}>
           {(close) => <DeleteCheck space={space} audit={audit} onKeep={close} onDelete={remove} />}
+        </Sheet>
+      )}
+
+      {leavePrompt && !audit.committedAs && (
+        <Sheet label="Save as current" onClose={() => setLeavePrompt(false)}>
+          {(close) => (
+            <div className="px-5 pb-3 pt-2">
+              <p className="display text-[30px]">Save as current?</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-soft">
+                Next check will still use your older photo unless you save the new image.
+              </p>
+              <div className="mt-6 flex gap-2">
+                <Button
+                  tone="sunk"
+                  className="min-w-0 flex-1 basis-0"
+                  onClick={() => {
+                    close();
+                    goBack();
+                  }}
+                >
+                  Leave
+                </Button>
+                <Button className="min-w-0 flex-1 basis-0" disabled={saving} onClick={() => void save()}>
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+              </div>
+            </div>
+          )}
         </Sheet>
       )}
     </main>

@@ -9,7 +9,7 @@ import { Button, Missing, nav, Round, Screen, Shared, Splash } from "@/component
 import { runAudit } from "@/lib/engine";
 import { failureOf, type Failure as FailureInfo } from "@/lib/failure";
 import { plural } from "@/lib/format";
-import { FRAME, fromFile, fromSource, type LoadedImage } from "@/lib/image";
+import { FRAME, cssUrl, fromFile, fromSource, type LoadedImage } from "@/lib/image";
 import { headOf, useHydrated, useLocus, useSpace } from "@/lib/store";
 import type { Audit, Commit } from "@/lib/types";
 
@@ -56,8 +56,10 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
       changes ? plural(changes, "change") : "no changes",
       occluded ? `${occluded} to look at` : "all clear",
     ];
+    // Keep the bar moving (esp. for instant demo fixtures) before snapping to 100%.
+    await wait(Math.max(0, 2400 - (Date.now() - started)));
     setStage({ k: "scan", image, steps: steps.map((s, i) => ({ ...s, value: values[i] })) });
-    await wait(Math.max(600, 2400 - (Date.now() - started)));
+    await wait(600);
     addAudit(space!.id, audit);
     router.replace(`/spaces/${space!.id}/audits/${audit.id}`, { transitionTypes: nav("forward") });
   }
@@ -182,7 +184,7 @@ function Viewfinder({
                 key={shot.src}
                 aria-hidden
                 className="fade absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${JSON.stringify(shot.src)})` }}
+                style={{ backgroundImage: cssUrl(shot.src) }}
               />
             ) : (
               <video
@@ -202,7 +204,7 @@ function Viewfinder({
               aria-hidden
               className="absolute inset-0 bg-cover bg-center transition-opacity duration-200"
               style={{
-                backgroundImage: `url(${JSON.stringify(head.image)})`,
+                backgroundImage: cssUrl(head.image),
                 opacity: lastOpacity,
               }}
             />

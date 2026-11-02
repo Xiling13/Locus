@@ -186,6 +186,20 @@ export const missingOf = (space: Space) =>
 /** Current reference photo for a space (same as head). */
 export const sceneOf = headOf;
 
+/**
+ * Photo shown on cards / space hero / check peek.
+ * Always the saved current (`head`) — a check only becomes this after Save as new current.
+ */
+export function glanceOf(space: Space) {
+  const head = headOf(space);
+  return {
+    image: head.image,
+    width: head.width,
+    height: head.height,
+    createdAt: head.createdAt,
+  };
+}
+
 /** Display order / priority: Missing > Moved > New. */
 export const KIND_ORDER: Record<DiffKind, number> = { removed: 0, moved: 1, added: 2 };
 

@@ -5,7 +5,7 @@ import { useDeferredValue, useState } from "react";
 import { Back, Close, Search } from "@/components/icons";
 import { Dock, nav, Pill, Round, Screen, Splash, Thumb, useIntro } from "@/components/ui";
 import { plural } from "@/lib/format";
-import { headOf, missingOf, useHydrated, useLocus } from "@/lib/store";
+import { glanceOf, headOf, missingOf, useHydrated, useLocus } from "@/lib/store";
 import type { LedgerObject, Space } from "@/lib/types";
 
 type Hit = { space: Space; item: LedgerObject; missing: boolean; rank: number };
@@ -100,7 +100,7 @@ function Results({
                       transitionTypes={nav("forward")}
                       className="flex items-center gap-3.5 p-2.5 pr-4 transition-colors active:bg-paper"
                     >
-                      <Thumb src={headOf(s).image} />
+                      <Thumb src={glanceOf(s).image} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[17px] font-semibold">
                           <Highlight text={s.name} q={q} />

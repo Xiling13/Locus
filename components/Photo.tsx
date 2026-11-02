@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
-import { FRAME } from "@/lib/image";
+import { FRAME, cssUrl } from "@/lib/image";
 import type { BBox } from "@/lib/types";
 
 const pct = (b: BBox): CSSProperties => ({
@@ -42,7 +42,7 @@ export function Frame({
         <div
           aria-hidden
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${JSON.stringify(src)})` }}
+          style={{ backgroundImage: cssUrl(src) }}
         />
         {children}
       </div>
