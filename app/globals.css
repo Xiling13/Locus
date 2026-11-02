@@ -148,6 +148,13 @@ body {
   overscroll-behavior: none;
 }
 
+/* Photos are for viewing — never start a native drag ghost that pulls them out of frame. */
+img,
+video {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
 /* Desktop frame: slightly darker canvas outside the 480px column. */
 @media (min-width: 481px) {
   html,

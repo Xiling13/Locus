@@ -81,7 +81,12 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
       : head.objects.filter(
           (o) => !sceneIds.has(o.id) && !last.detections.some((d) => d.signature === o.signature),
         );
-  const items = [...scene.objects, ...fresh];
+  const items = [...scene.objects, ...fresh].sort((a, b) => {
+    const am = missingIds.has(a.id) ? 0 : 1;
+    const bm = missingIds.has(b.id) ? 0 : 1;
+    if (am !== bm) return am - bm;
+    return new Date(b.seenAt).getTime() - new Date(a.seenAt).getTime();
+  });
 
   function startAdding() {
     setActive(null);
@@ -102,7 +107,7 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
   const checkLabel = !checkStatus
     ? "All in place"
     : checkStatus.kind === "removed"
-      ? `${plural(checkStatus.count, "thing")} missing`
+      ? `${plural(checkStatus.count, "item")} missing`
       : checkStatus.kind === "moved"
         ? `${checkStatus.count} moved`
         : `${checkStatus.count} new`;
@@ -206,8 +211,11 @@ function SpaceView({ space, initialItem }: { space: Space; initialItem: string |
                 className="block w-full text-left transition-transform duration-300 active:scale-95 active:duration-100"
               >
                 <span className="relative block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={o.crop} alt="" className="aspect-square w-full rounded-[22px] object-cover" />
+                  <span
+                    aria-hidden
+                    className="block aspect-square w-full rounded-[22px] bg-sunk bg-cover bg-center"
+                    style={{ backgroundImage: `url(${JSON.stringify(o.crop)})` }}
+                  />
                   {missingIds.has(o.id) && (
                     <span className="absolute -right-0.5 -top-0.5 size-3.5 rounded-full bg-miss ring-[3px] ring-paper" />
                   )}

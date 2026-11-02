@@ -38,8 +38,12 @@ export function Frame({
   return (
     <div className={`relative overflow-hidden bg-sunk ${className}`} style={{ aspectRatio: aspect }}>
       <div className="absolute" style={layer}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" draggable={false} className="absolute inset-0 size-full select-none" />
+        {/* CSS background — not an <img>, so the browser can't native-drag it out of the frame. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${JSON.stringify(src)})` }}
+        />
         {children}
       </div>
     </div>

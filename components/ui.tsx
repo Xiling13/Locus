@@ -127,8 +127,13 @@ export function Round({
 
 /** Square list thumbnail. Same shape as the item tiles, one size everywhere. */
 export function Thumb({ src, className = "" }: { src: string; className?: string }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" draggable={false} className={`size-14 shrink-0 rounded-[18px] bg-sunk object-cover ${className}`} />;
+  return (
+    <span
+      aria-hidden
+      className={`block size-14 shrink-0 rounded-[18px] bg-sunk bg-cover bg-center ${className}`}
+      style={{ backgroundImage: `url(${JSON.stringify(src)})` }}
+    />
+  );
 }
 
 /** Filter chip used above lists. */

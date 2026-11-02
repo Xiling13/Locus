@@ -44,9 +44,9 @@ export default function Home() {
           </>
         ) : missing > 0 ? (
           <>
-            {plural(missing, "thing")}
+            {plural(missing, "item")}
             <br />
-            <span className="text-mute">need a look</span>
+            <span className="text-mute">need attention</span>
           </>
         ) : checked ? (
           <>
@@ -56,7 +56,7 @@ export default function Home() {
           </>
         ) : (
           <>
-            {plural(items, "thing")}
+            {plural(items, "item")}
             <br />
             <span className="text-mute">ready to check</span>
           </>
@@ -108,19 +108,34 @@ function NewSpaceCard() {
         </span>
         <span className="text-[22px] font-bold tracking-[-0.03em]">New space</span>
         <span className="max-w-[200px] text-[14px] leading-snug text-soft">
-          A desk, a drawer, a toolbox — anywhere things go missing.
+          A desk, a drawer, a toolbox — anywhere items go missing.
         </span>
       </span>
     </Link>
   );
 }
 
+function spaceRecency(space: Space) {
+  return new Date((space.audits[0] ?? headOf(space)).createdAt).getTime();
+}
+
+/** Missing first, then most recently checked / updated. */
+function sortSpaces(spaces: Space[]) {
+  return [...spaces].sort((a, b) => {
+    const am = missingOf(a).length > 0 ? 0 : 1;
+    const bm = missingOf(b).length > 0 ? 0 : 1;
+    if (am !== bm) return am - bm;
+    return spaceRecency(b) - spaceRecency(a);
+  });
+}
+
 function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
+  const ordered = sortSpaces(spaces);
   const rail = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; left: number } | null>(null);
   const dragged = useRef(false);
   const [index, setIndex] = useState(0);
-  const count = spaces.length + 1;
+  const count = ordered.length + 1;
 
   const update = useCallback(() => {
     const el = rail.current;
@@ -219,12 +234,12 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
         }}
         className="home-rail no-scrollbar flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto px-[11%] pb-14 pt-5 active:cursor-grabbing"
       >
-        {spaces.map((s, i) => (
+        {ordered.map((s, i) => (
           <DeckCard key={s.id} index={i} intro={intro}>
             <SpaceCard space={s} />
           </DeckCard>
         ))}
-        <DeckCard index={spaces.length} intro={intro}>
+        <DeckCard index={ordered.length} intro={intro}>
           <NewSpaceCard />
         </DeckCard>
       </div>
@@ -236,7 +251,7 @@ function Deck({ spaces, intro }: { spaces: Space[]; intro: boolean }) {
             type="button"
             role="tab"
             aria-selected={i === index}
-            aria-label={i < spaces.length ? spaces[i].name : "New space"}
+            aria-label={i < ordered.length ? ordered[i].name : "New space"}
             onClick={() => go(i)}
             className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? "w-6 bg-ink" : "w-1.5 bg-line"}`}
           />
@@ -286,6 +301,8 @@ function SpaceCard({ space }: { space: Space }) {
     <Link
       href={`/spaces/${space.id}`}
       transitionTypes={nav("forward")}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       className="home-card block rounded-[34px] bg-card p-2 shadow-[0_16px_36px_-14px_rgb(0_0_0/0.22)] transition-transform duration-300 active:scale-[0.97] active:duration-100"
     >
       <div className="relative">
@@ -318,8 +335,12 @@ function SpaceCard({ space }: { space: Space }) {
         {missing.length > 0 ? (
           <div className="home-card-avatars flex -space-x-3">
             {missing.slice(0, 3).map((m) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={m.id} src={m.crop} alt="" className="size-10 rounded-full object-cover ring-[3px] ring-card" />
+              <span
+                key={m.id}
+                aria-hidden
+                className="size-10 rounded-full bg-cover bg-center ring-[3px] ring-card"
+                style={{ backgroundImage: `url(${JSON.stringify(m.crop)})` }}
+              />
             ))}
           </div>
         ) : (

@@ -173,12 +173,17 @@ function Results({
 function Browse({ spaces }: { spaces: Space[] }) {
   const intro = useIntro();
   if (!spaces.length)
-    return <p className="px-6 pt-20 text-center text-[15px] text-soft">Add a space to start finding things.</p>;
+    return <p className="px-6 pt-20 text-center text-[15px] text-soft">Add a space to start finding items.</p>;
   return (
     <div className="space-y-8 pt-3">
       {spaces.map((s, si) => {
         const missing = new Set(missingOf(s).map((m) => m.objectId));
-        const items = headOf(s).objects;
+        const items = [...headOf(s).objects].sort((a, b) => {
+          const am = missing.has(a.id) ? 0 : 1;
+          const bm = missing.has(b.id) ? 0 : 1;
+          if (am !== bm) return am - bm;
+          return new Date(b.seenAt).getTime() - new Date(a.seenAt).getTime();
+        });
         const overflow = items.length > 6;
         const shown = overflow ? items.slice(0, 6) : items;
         const extra = overflow ? items.length - 6 : 0;

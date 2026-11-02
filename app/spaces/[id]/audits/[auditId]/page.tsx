@@ -73,7 +73,7 @@ function Report({
   const headline = !status
     ? "All in place"
     : status.kind === "removed"
-      ? `${plural(status.count, "thing")} missing`
+      ? `${plural(status.count, "item")} missing`
       : status.kind === "moved"
         ? `${status.count} moved`
         : `${status.count} new`;
@@ -187,7 +187,7 @@ function Report({
               })}
             </div>
           )}
-          <p className="mt-3 text-[13px] text-mute">{plural(audit.unchanged, "other thing")} right where they were</p>
+          <p className="mt-3 text-[13px] text-mute">{plural(audit.unchanged, "item")} right in place</p>
         </div>
 
         <ul className="mt-4 space-y-2 px-4">

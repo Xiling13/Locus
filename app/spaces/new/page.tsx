@@ -36,7 +36,7 @@ export default function NewSpace() {
 
   async function analyze(image: LoadedImage) {
     const steps: ScanStep[] = [
-      { label: "Spotting your things" },
+      { label: "Spotting your items" },
       { label: "Naming them" },
       { label: "Remembering where they go" },
     ];
@@ -117,9 +117,10 @@ export default function NewSpace() {
   if (stage.k === "review") {
     const objs = stage.commit.objects;
     const kept = objs.length - excluded.size;
+    const pick = (id: string) => setActive((a) => (a === id ? null : id));
     return (
-      <main className="min-h-dvh bg-paper pb-36">
-        <div className="pt-safe px-2">
+      <main className="min-h-dvh bg-paper pb-36" onClick={() => setActive(null)}>
+        <div className="pt-safe px-2" onClick={(e) => e.stopPropagation()}>
           <div className="relative">
             <Shared name="shot">
               <ScenePhoto
@@ -136,7 +137,7 @@ export default function NewSpace() {
                 }))}
                 active={active}
                 onPick={(id) => {
-                  setActive((a) => (a === id ? null : id));
+                  pick(id);
                   document.getElementById(`obj-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
                 onClear={() => setActive(null)}
@@ -166,12 +167,14 @@ export default function NewSpace() {
         </div>
 
         <section className="px-5 pt-6">
-          <InlineEdit
-            label="Space name"
-            value={name.trim() || "My space"}
-            onSave={setName}
-            className="display text-[40px]"
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <InlineEdit
+              label="Space name"
+              value={name.trim() || "My space"}
+              onSave={setName}
+              className="display text-[40px]"
+            />
+          </div>
           <p className="mt-3 text-[15px] leading-relaxed text-soft">
             Found {plural(objs.length, "item")}. Tap a name to fix it, and switch off anything you don’t need to keep
             track of.
@@ -183,19 +186,19 @@ export default function NewSpace() {
                 <li
                   key={o.id}
                   id={`obj-${o.id}`}
-                  className={`flex items-center gap-3.5 border-b border-paper p-2.5 pr-4 transition-colors last:border-0 ${
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pick(o.id);
+                  }}
+                  className={`flex cursor-pointer items-center gap-3.5 border-b border-paper p-2.5 pr-4 transition-colors last:border-0 ${
                     active === o.id ? "bg-paper" : ""
                   }`}
                 >
-                  <button
-                    type="button"
-                    aria-label={`Show ${labels[o.id] ?? o.label} in photo`}
-                    onClick={() => setActive((a) => (a === o.id ? null : o.id))}
-                    className="shrink-0"
+                  <Thumb src={o.crop} className={`transition-[opacity,filter] ${off ? "opacity-35 grayscale" : ""}`} />
+                  <div
+                    className={`min-w-0 flex-1 transition ${off ? "opacity-40" : ""}`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Thumb src={o.crop} className={`transition-[opacity,filter] ${off ? "opacity-35 grayscale" : ""}`} />
-                  </button>
-                  <div className={`min-w-0 flex-1 transition ${off ? "opacity-40" : ""}`}>
                     <InlineEdit
                       label="Item name"
                       value={labels[o.id] ?? o.label}
@@ -203,18 +206,20 @@ export default function NewSpace() {
                       className="text-[16px] font-semibold"
                     />
                   </div>
-                  <Toggle
-                    on={!off}
-                    label={`Keep track of ${labels[o.id] ?? o.label}`}
-                    onChange={() =>
-                      setExcluded((s) => {
-                        const n = new Set(s);
-                        if (n.has(o.id)) n.delete(o.id);
-                        else n.add(o.id);
-                        return n;
-                      })
-                    }
-                  />
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <Toggle
+                      on={!off}
+                      label={`Keep track of ${labels[o.id] ?? o.label}`}
+                      onChange={() =>
+                        setExcluded((s) => {
+                          const n = new Set(s);
+                          if (n.has(o.id)) n.delete(o.id);
+                          else n.add(o.id);
+                          return n;
+                        })
+                      }
+                    />
+                  </span>
                 </li>
               );
             })}

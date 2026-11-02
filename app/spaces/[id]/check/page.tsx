@@ -35,7 +35,7 @@ export default function CheckPage({ params }: PageProps<"/spaces/[id]/check">) {
 
   async function compare(image: LoadedImage) {
     const steps: ScanStep[] = [
-      { label: "Spotting your things" },
+      { label: "Spotting your items" },
       { label: "Comparing with last time" },
       { label: "Checking hidden spots" },
     ];
@@ -107,6 +107,7 @@ function Viewfinder({
   demo?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [camera, setCamera] = useState<"pending" | "live" | "off">("pending");
   const [peek, setPeek] = useState(false);
@@ -138,11 +139,26 @@ function Viewfinder({
     };
   }, [shot]);
 
+  // Kill native image/video drag & touch panning inside the frame — peek is view-only.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const block = (e: Event) => e.preventDefault();
+    el.addEventListener("touchmove", block, { passive: false });
+    el.addEventListener("dragstart", block);
+    return () => {
+      el.removeEventListener("touchmove", block);
+      el.removeEventListener("dragstart", block);
+    };
+  }, []);
+
   async function capture() {
     const v = videoRef.current;
     if (!v || camera !== "live") return fileRef.current?.click();
     onShot(await fromSource(v));
   }
+
+  const lastOpacity = peek ? 0.6 : !shot && camera === "off" ? 0.15 : 0;
 
   return (
     <main className="flex h-dvh flex-col bg-black text-white">
@@ -155,42 +171,66 @@ function Viewfinder({
       <div className="flex min-h-0 flex-1 items-center justify-center pb-8" style={{ containerType: "size" }}>
         <Shared name="shot">
         <div
-          className="relative touch-none select-none overflow-hidden rounded-[34px] bg-[#1c1c1b]"
+          ref={frameRef}
+          className="relative touch-none select-none overflow-hidden rounded-[34px] bg-[#1c1c1b] [-webkit-touch-callout:none]"
           style={{ aspectRatio: FRAME, width: `min(100cqw - 16px, ${FRAME * 100}cqh)` }}
-          onPointerDown={() => setPeek(true)}
-          onPointerUp={() => setPeek(false)}
-          onPointerLeave={() => setPeek(false)}
-          onContextMenu={(e) => e.preventDefault()}
         >
-          {shot ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={shot.src} src={shot.src} alt="" className="fade absolute inset-0 size-full object-cover" />
-          ) : (
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
-                camera === "live" ? "opacity-100" : "opacity-0"
-              }`}
+          {/* All still frames are CSS backgrounds (not <img>) so nothing can be native-dragged. */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {shot ? (
+              <div
+                key={shot.src}
+                aria-hidden
+                className="fade absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url(${JSON.stringify(shot.src)})` }}
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                playsInline
+                muted
+                controls={false}
+                disablePictureInPicture
+                disableRemotePlayback
+                draggable={false}
+                className={`absolute inset-0 size-full object-cover transition-opacity duration-500 ${
+                  camera === "live" ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            )}
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-cover bg-center transition-opacity duration-200"
+              style={{
+                backgroundImage: `url(${JSON.stringify(head.image)})`,
+                opacity: lastOpacity,
+              }}
             />
-          )}
+          </div>
 
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={head.image}
-            alt=""
-            className="absolute inset-0 size-full object-cover transition-opacity duration-200"
-            style={{ opacity: peek ? 0.6 : !shot && camera === "off" ? 0.15 : 0 }}
+          {/* Full-frame hit target: hold to peek only — pan/drag never moves the photo. */}
+          <div
+            role="presentation"
+            className="absolute inset-0 z-10 touch-none"
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setPeek(true);
+            }}
+            onPointerMove={(e) => e.preventDefault()}
+            onPointerUp={() => setPeek(false)}
+            onPointerCancel={() => setPeek(false)}
+            onLostPointerCapture={() => setPeek(false)}
+            onContextMenu={(e) => e.preventDefault()}
+            onDragStart={(e) => e.preventDefault()}
           />
 
           {!shot && camera === "off" && (
-            <div className="absolute inset-x-0 bottom-0 p-6">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-6">
               <p className="text-[22px] font-bold tracking-[-0.03em]">Camera is off</p>
               <p className="mt-1 text-[14px] text-white/70">Pick a photo taken from the same spot instead.</p>
             </div>
           )}
-          <span className="glass-dark pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/90">
+          <span className="glass-dark pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-semibold text-white/90">
             {peek ? "Last photo" : "Hold to see last photo"}
           </span>
         </div>
