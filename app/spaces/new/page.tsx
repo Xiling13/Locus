@@ -174,10 +174,10 @@ export default function NewSpace() {
               label="Space name"
               value={name.trim() || "My space"}
               onSave={setName}
-              className="display text-[40px]"
+              className="space-title display text-[40px]"
             />
           </div>
-          <p className="mt-3 text-[15px] leading-relaxed text-soft">
+          <p className="space-lede mt-3 text-[15px] leading-relaxed text-soft">
             Found {plural(objs.length, "item")}. Tap a name to fix it, and switch off anything you don’t need to keep
             track of.
           </p>
@@ -257,13 +257,13 @@ export default function NewSpace() {
   }
 
   return (
-    <main className="pt-safe flex min-h-dvh flex-col bg-paper px-5 pb-safe">
-      <div className="flex items-center justify-between">
-        <Round href="/" nav="down" aria-label="Close" variant="card">
+    <main className="new-shell pt-safe flex flex-col bg-paper px-5 pb-safe">
+      <div className="flex shrink-0 items-center justify-between">
+        <Round href="/" nav="down" aria-label="Close" variant="card" className="compact-round">
           <Close />
         </Round>
         <span className="text-[15px] font-semibold">New space</span>
-        <span className="size-11" />
+        <span className="compact-round size-11" />
       </div>
 
       <input
@@ -271,31 +271,31 @@ export default function NewSpace() {
         onChange={(e) => setName(e.target.value)}
         placeholder="Name it"
         aria-label="Space name"
-        className="display mt-6 w-full bg-transparent text-[48px] outline-none placeholder:text-mute/60"
+        className="new-name display mt-6 w-full shrink-0 bg-transparent text-[48px] outline-none placeholder:text-mute/60"
       />
-      <p className="mt-2 text-[15px] text-soft">A desk, a drawer, the entry shelf…</p>
+      <p className="new-hint mt-2 shrink-0 text-[15px] text-soft">A desk, a drawer, the entry shelf…</p>
 
       {/* Bottom padding lifts the frame above true centre — same optical bias as Failure. */}
-      <div className="flex flex-1 flex-col items-center justify-center pb-[9dvh] pt-3">
+      <div className="new-stage flex min-h-0 flex-1 flex-col items-center justify-center pb-[9dvh] pt-3">
         <button
           type="button"
           onClick={() => cameraRef.current?.click()}
-          className="relative mx-auto flex w-full flex-col items-center justify-center gap-4 overflow-hidden rounded-[34px] bg-card px-8 pb-3 text-center shadow-[0_18px_36px_-16px_rgb(0_0_0/0.22)] transition-transform duration-300 active:scale-[0.98] active:duration-100"
+          className="new-frame relative mx-auto flex w-full flex-col items-center justify-center gap-4 overflow-hidden rounded-[34px] bg-card px-8 pb-3 text-center shadow-[0_18px_36px_-16px_rgb(0_0_0/0.22)] transition-transform duration-300 active:scale-[0.98] active:duration-100"
           style={{ aspectRatio: FRAME, width: `min(100%, calc(44dvh * ${FRAME}))` }}
         >
-          <span className="grid size-16 place-items-center rounded-full bg-ink text-paper">
+          <span className="new-frame-icon grid size-16 place-items-center rounded-full bg-ink text-paper">
             <Camera width={28} height={28} />
           </span>
-          <span className="whitespace-nowrap text-[20px] font-bold tracking-[-0.03em]">
+          <span className="new-frame-title whitespace-nowrap text-[20px] font-bold tracking-[-0.03em]">
             Take photo of the space
           </span>
-          <span className="text-[14px] leading-relaxed text-soft">
+          <span className="new-frame-copy text-[14px] leading-relaxed text-soft">
             Shoot from above, in good light, with everything in view.
           </span>
         </button>
       </div>
 
-      <div className="flex gap-2">
+      <div className="compact-actions flex shrink-0 gap-2">
         <Button tone="card" className="min-w-0 flex-1 basis-0" onClick={() => libraryRef.current?.click()}>
           <Photos width={20} height={20} />
           Photos

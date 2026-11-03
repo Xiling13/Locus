@@ -82,7 +82,7 @@ function Results({
         <Browse spaces={spaces} />
       ) : hits.length === 0 && spaceHits.length === 0 ? (
         <div className="fade px-6 pt-20 text-center">
-          <p className="display text-[34px]">No matches</p>
+          <p className="scan-title display text-[34px]">No matches</p>
           <p className="mx-auto mt-3 max-w-[260px] text-[15px] leading-relaxed text-soft">
             Nothing called “{query.trim()}” in your spaces. Try a shorter word, like “key” or “pen”.
           </p>

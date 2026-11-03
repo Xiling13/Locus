@@ -291,12 +291,12 @@ function SpaceMenu({ name, onRename, onDelete }: { name: string; onRename: () =>
   const [confirm, setConfirm] = useState(false);
   if (confirm)
     return (
-      <div className="fade px-5 pb-3 pt-2">
-        <p className="display text-[30px]">Delete “{name}”?</p>
+      <div className="sheet-body fade px-5 pb-3 pt-2">
+        <p className="sheet-title display text-[30px]">Delete “{name}”?</p>
         <p className="mt-2 text-[15px] leading-relaxed text-soft">
           Its photos, items and check history will be removed from this device.
         </p>
-        <div className="mt-6 flex gap-2">
+        <div className="sheet-actions mt-6 flex gap-2">
           <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={() => setConfirm(false)}>
             Keep
           </Button>
@@ -350,7 +350,7 @@ function ItemSheet({
   return (
     <Sheet label={item.label} onClose={onClose}>
       {(close) => (
-        <div className="px-4 pb-2">
+        <div className="sheet-body px-4 pb-2">
           <Spot
             src={head.image}
             width={head.width}
@@ -358,9 +358,9 @@ function ItemSheet({
             bbox={item.bbox}
             aspect={16 / 11}
             tone={missingCheck ? "var(--color-miss)" : "white"}
-            className="rounded-[24px]"
+            className="sheet-spot rounded-[24px]"
           />
-          <div className="px-1 pt-5">
+          <div className="sheet-body-block px-1 pt-5">
             {missingCheck && (
               <Pill tone="miss" className="mb-3">
                 Missing in the last check
@@ -370,14 +370,14 @@ function ItemSheet({
               label="Item name"
               value={item.label}
               onSave={(v) => renameItem(space.id, item.id, v)}
-              className="text-[28px] font-bold leading-tight tracking-[-0.035em]"
+              className="sheet-title text-[28px] font-bold leading-tight tracking-[-0.035em]"
             />
-            <dl className="mt-5 rounded-[20px] bg-paper p-4">
+            <dl className="sheet-meta mt-5 rounded-[20px] bg-paper p-4">
               <div>
                 <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Where it lives</dt>
                 <dd className="mt-1.5 text-[17px] font-semibold leading-snug tracking-[-0.01em]">{item.hint}</dd>
               </div>
-              <div className="mt-4 border-t border-line/60 pt-3">
+              <div className="sheet-meta-row mt-4 border-t border-line/60 pt-3">
                 <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Last seen</dt>
                 <dd className="mt-1 text-[14px] leading-snug text-soft">
                   {stamp(item.seenAt)} · {ago(item.seenAt)}
@@ -385,7 +385,7 @@ function ItemSheet({
               </div>
             </dl>
           </div>
-          <div className="mt-5 flex gap-2">
+          <div className="sheet-actions mt-5 flex gap-2">
             {missingCheck ? (
               <>
                 <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={close}>

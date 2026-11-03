@@ -163,9 +163,9 @@ function Viewfinder({
   const lastOpacity = peek ? 0.6 : !shot && camera === "off" ? 0.15 : 0;
 
   return (
-    <main className="flex h-dvh flex-col bg-black text-white">
-      <header className="pt-safe flex items-center px-4 pb-3">
-        <Round href={close} nav="down" aria-label="Close" variant="dark">
+    <main className="flex h-svh max-h-svh flex-col bg-black text-white">
+      <header className="pt-safe flex shrink-0 items-center px-4 pb-3">
+        <Round href={close} nav="down" aria-label="Close" variant="dark" className="compact-round">
           <Close />
         </Round>
       </header>

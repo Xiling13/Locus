@@ -68,16 +68,16 @@ export function Failure({
   const waiting = kind === "offline" && !back && !online;
 
   return (
-    <main className="pt-safe pb-safe flex min-h-dvh flex-col bg-paper px-5">
-      <div className="flex">
-        <Round href={closeHref} nav="down" onClick={onClose} aria-label="Close" variant="card">
+    <main className="fail-shell pt-safe pb-safe flex flex-col bg-paper px-5">
+      <div className="flex shrink-0">
+        <Round href={closeHref} nav="down" onClick={onClose} aria-label="Close" variant="card" className="compact-round">
           <Close />
         </Round>
       </div>
 
       {/* A little bottom padding keeps the block just above true centre. */}
-      <div className="flex flex-1 flex-col justify-center pb-[10dvh]">
-        <h1 className="display rise whitespace-pre-line text-[52px]">{copy.title}</h1>
+      <div className="flex min-h-0 flex-1 flex-col justify-center pb-[10dvh]">
+        <h1 className="fail-title display rise whitespace-pre-line text-[52px]">{copy.title}</h1>
         <div className="rise mt-5 space-y-1.5 text-[17px] leading-relaxed text-soft" style={{ animationDelay: "80ms" }}>
           {copy.lines.map((line) => (
             <p key={line}>{line}</p>
@@ -91,10 +91,12 @@ export function Failure({
       </div>
 
       {!waiting && !back && (
-        <Button className="fade" onClick={onRetry}>
-          <Retry width={20} height={20} />
-          Try again
-        </Button>
+        <div className="compact-actions shrink-0">
+          <Button className="fade" onClick={onRetry}>
+            <Retry width={20} height={20} />
+            Try again
+          </Button>
+        </div>
       )}
     </main>
   );

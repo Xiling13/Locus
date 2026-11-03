@@ -28,10 +28,10 @@ export function Scanner({ src, steps, title }: { src: string; steps: ScanStep[];
   const status = done ? steps.map((s) => s.value).filter((v) => v !== "done")[0] ?? "Done" : `${step.label}…`;
 
   return (
-    <main className="pt-safe pb-safe flex min-h-dvh flex-col justify-center bg-paper px-5">
+    <main className="scan-shell pt-safe pb-safe flex flex-col justify-center bg-paper px-5">
       <Shared name="shot">
         <div
-          className="relative mx-auto w-full overflow-hidden rounded-[34px] bg-sunk"
+          className="scan-frame relative mx-auto w-full overflow-hidden rounded-[34px] bg-sunk"
           style={{ aspectRatio: FRAME, maxWidth: `calc(58dvh * ${FRAME})` }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -50,8 +50,8 @@ export function Scanner({ src, steps, title }: { src: string; steps: ScanStep[];
         </div>
       </Shared>
 
-      <div className="mx-auto mt-8 w-full" style={{ maxWidth: `calc(58dvh * ${FRAME})` }}>
-        <h1 className="display text-[34px] leading-[1.05]">{title}</h1>
+      <div className="scan-copy mx-auto mt-8 w-full" style={{ maxWidth: `calc(58dvh * ${FRAME})` }}>
+        <h1 className="scan-title display text-[34px] leading-[1.05]">{title}</h1>
         <div className="mt-5 flex items-baseline justify-between gap-3 text-[15px]">
           <span key={status} className="fade truncate font-medium">
             {status}

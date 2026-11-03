@@ -34,13 +34,20 @@ export function NameItem({
   const label = name.trim();
   return (
     <form
-      className="px-4 pb-2"
+      className="sheet-body px-4 pb-2"
       onSubmit={(e) => {
         e.preventDefault();
         if (label) onAdd(label);
       }}
     >
-      <Spot src={commit.image} width={commit.width} height={commit.height} bbox={bbox} aspect={16 / 11} className="rounded-[24px]" />
+      <Spot
+        src={commit.image}
+        width={commit.width}
+        height={commit.height}
+        bbox={bbox}
+        aspect={16 / 11}
+        className="sheet-spot rounded-[24px]"
+      />
       <input
         autoFocus
         value={name}
@@ -48,9 +55,9 @@ export function NameItem({
         placeholder="What is it?"
         aria-label="Item name"
         enterKeyHint="done"
-        className="mt-5 w-full bg-transparent px-1 text-[28px] font-bold leading-tight tracking-[-0.035em] outline-none placeholder:text-mute/60"
+        className="sheet-title mt-5 w-full bg-transparent px-1 text-[28px] font-bold leading-tight tracking-[-0.035em] outline-none placeholder:text-mute/60"
       />
-      <div className="mt-6 flex gap-2">
+      <div className="sheet-actions mt-6 flex gap-2">
         <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={onRedo}>
           Redraw
         </Button>

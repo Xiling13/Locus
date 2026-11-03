@@ -166,7 +166,7 @@ export function Chip({
 /** Bottom action bar that floats over scrolling content. */
 export function Dock({ children }: { children: ReactNode }) {
   return (
-    <div className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] bg-gradient-to-t from-paper via-paper/95 to-transparent px-5 pt-10 *:pointer-events-auto">
+    <div className="dock pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-20 mx-auto max-w-[480px] bg-gradient-to-t from-paper via-paper/95 to-transparent px-5 pt-10 *:pointer-events-auto">
       {children}
     </div>
   );
@@ -305,7 +305,7 @@ export function Sheet({
       />
       <div
         onAnimationEnd={(e) => e.target === e.currentTarget && setEntered(true)}
-        className={`absolute inset-x-2 bottom-2 max-h-[88dvh] overflow-hidden rounded-[34px] bg-card shadow-[0_-8px_40px_rgb(0_0_0/0.18)] ${
+        className={`sheet-panel absolute inset-x-2 bottom-2 max-h-[88dvh] overflow-hidden rounded-[34px] bg-card shadow-[0_-8px_40px_rgb(0_0_0/0.18)] ${
           entered ? "" : "sheet"
         }`}
         style={{
@@ -346,7 +346,7 @@ export function Sheet({
         >
           <span className="h-1.5 w-10 rounded-full bg-line" />
         </div>
-        <div className="no-scrollbar max-h-[calc(88dvh-28px)] overflow-y-auto overscroll-contain pb-safe">
+        <div className="sheet-scroll no-scrollbar max-h-[calc(88dvh-28px)] overflow-y-auto overscroll-contain pb-safe">
           {typeof children === "function" ? children(close) : children}
         </div>
       </div>

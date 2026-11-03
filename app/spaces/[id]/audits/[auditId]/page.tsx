@@ -154,9 +154,9 @@ function Report({
   }
 
   return (
-    <main className="flex h-dvh flex-col bg-paper">
+    <main className="flex h-svh max-h-svh flex-col bg-paper">
       <div
-        className="relative shrink-0 overflow-hidden rounded-b-[34px]"
+        className="audit-hero relative shrink-0 overflow-hidden rounded-b-[34px]"
         style={{ height: `min(calc(min(100vw, 480px) / ${FRAME}), 56dvh)` }}
       >
         <Shared name="shot">
@@ -184,7 +184,7 @@ function Report({
           <p className="text-[14px] font-medium text-soft">
             {space.name} · checked {ago(audit.createdAt)}
           </p>
-          <h1 className="display mt-1.5 text-[38px]">{headline}</h1>
+          <h1 className="audit-headline display mt-1.5 text-[38px]">{headline}</h1>
 
           {items.length > 0 && (
             <div className="no-scrollbar -mx-5 mt-5 flex gap-2 overflow-x-auto px-5">
@@ -281,12 +281,12 @@ function Report({
       {leavePrompt && !audit.committedAs && (
         <Sheet label="Save as current" onClose={() => setLeavePrompt(false)}>
           {(close) => (
-            <div className="px-5 pb-3 pt-2">
-              <p className="display text-[30px]">Save as current?</p>
+            <div className="sheet-body px-5 pb-3 pt-2">
+              <p className="sheet-title display text-[30px]">Save as current?</p>
               <p className="mt-2 text-[15px] leading-relaxed text-soft">
                 Next check will still use your older photo unless you save the new image.
               </p>
-              <div className="mt-6 flex gap-2">
+              <div className="sheet-actions mt-6 flex gap-2">
                 <Button
                   tone="sunk"
                   className="min-w-0 flex-1 basis-0"
@@ -323,8 +323,8 @@ function DeleteCheck({
   const { drop, previous } = deletionOf(space, audit.id);
   const later = drop.length - 1;
   return (
-    <div className="px-5 pb-3 pt-2">
-      <p className="display text-[30px]">Delete this check?</p>
+    <div className="sheet-body px-5 pb-3 pt-2">
+      <p className="sheet-title display text-[30px]">Delete this check?</p>
       <p className="mt-2 text-[15px] leading-relaxed text-soft">
         {previous
           ? `Its photo is your current photo right now. Deleting it brings back the current from ${stamp(previous.createdAt)}.`
@@ -333,7 +333,7 @@ function DeleteCheck({
             : "It comes out of your history. Nothing else changes."}
         {later > 0 && ` The ${plural(later, "newer check")} compared against it will go too.`}
       </p>
-      <div className="mt-6 flex gap-2">
+      <div className="sheet-actions mt-6 flex gap-2">
         <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={onKeep}>
           Keep
         </Button>
