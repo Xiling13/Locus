@@ -351,70 +351,72 @@ function ItemSheet({
     <Sheet label={item.label} onClose={onClose}>
       {(close) => (
         <div className="sheet-body px-4 pb-2">
-          <Spot
-            src={head.image}
-            width={head.width}
-            height={head.height}
-            bbox={item.bbox}
-            aspect={16 / 11}
-            tone={missingCheck ? "var(--color-miss)" : "white"}
-            className="sheet-spot rounded-[24px]"
-          />
-          <div className="sheet-body-block px-1 pt-5">
-            {missingCheck && (
-              <Pill tone="miss" className="mb-3">
-                Missing in the last check
-              </Pill>
-            )}
-            <InlineEdit
-              label="Item name"
-              value={item.label}
-              onSave={(v) => renameItem(space.id, item.id, v)}
-              className="sheet-title text-[28px] font-bold leading-tight tracking-[-0.035em]"
+          <div className="sheet-stack">
+            <Spot
+              src={head.image}
+              width={head.width}
+              height={head.height}
+              bbox={item.bbox}
+              aspect={16 / 11}
+              tone={missingCheck ? "var(--color-miss)" : "white"}
+              className="sheet-spot rounded-[24px]"
             />
-            <dl className="sheet-meta mt-5 rounded-[20px] bg-paper p-4">
-              <div>
-                <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Where it lives</dt>
-                <dd className="mt-1.5 text-[17px] font-semibold leading-snug tracking-[-0.01em]">{item.hint}</dd>
-              </div>
-              <div className="sheet-meta-row mt-4 border-t border-line/60 pt-3">
-                <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Last seen</dt>
-                <dd className="mt-1 text-[14px] leading-snug text-soft">
-                  {stamp(item.seenAt)} · {ago(item.seenAt)}
-                </dd>
-              </div>
-            </dl>
-          </div>
-          <div className="sheet-actions mt-5 flex gap-2">
-            {missingCheck ? (
-              <>
-                <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={close}>
-                  Close
+            <div className="sheet-body-block px-1 pt-5">
+              {missingCheck && (
+                <Pill tone="miss" className="mb-3">
+                  Missing in the last check
+                </Pill>
+              )}
+              <InlineEdit
+                label="Item name"
+                value={item.label}
+                onSave={(v) => renameItem(space.id, item.id, v)}
+                className="sheet-title text-[28px] font-bold leading-tight tracking-[-0.035em]"
+              />
+              <dl className="sheet-meta mt-5 rounded-[20px] bg-paper p-4">
+                <div>
+                  <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Where it lives</dt>
+                  <dd className="mt-1.5 text-[17px] font-semibold leading-snug tracking-[-0.01em]">{item.hint}</dd>
+                </div>
+                <div className="sheet-meta-row mt-4 border-t border-line/60 pt-3">
+                  <dt className="text-[12px] font-medium uppercase tracking-[0.04em] text-mute">Last seen</dt>
+                  <dd className="mt-1 text-[14px] leading-snug text-soft">
+                    {stamp(item.seenAt)} · {ago(item.seenAt)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div className="sheet-actions mt-5 flex gap-2">
+              {missingCheck ? (
+                <>
+                  <Button tone="sunk" className="min-w-0 flex-1 basis-0" onClick={close}>
+                    Close
+                  </Button>
+                  <Link
+                    href={`/spaces/${space.id}/audits/${missingCheck.id}?item=rm-${item.id}`}
+                    transitionTypes={nav("forward")}
+                    className={buttonClass("ink", "min-w-0 flex-1 basis-0")}
+                  >
+                    Open check
+                  </Link>
+                </>
+              ) : (
+                <Button tone="sunk" onClick={close}>
+                  Done
                 </Button>
-                <Link
-                  href={`/spaces/${space.id}/audits/${missingCheck.id}?item=rm-${item.id}`}
-                  transitionTypes={nav("forward")}
-                  className={buttonClass("ink", "min-w-0 flex-1 basis-0")}
-                >
-                  Open check
-                </Link>
-              </>
-            ) : (
-              <Button tone="sunk" onClick={close}>
-                Done
-              </Button>
-            )}
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                setTimeout(() => untrackItem(space.id, item.id), 300);
+              }}
+              className={buttonClass("clear", "mt-1")}
+            >
+              Stop tracking
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              close();
-              setTimeout(() => untrackItem(space.id, item.id), 300);
-            }}
-            className={buttonClass("clear", "mt-1")}
-          >
-            Stop tracking
-          </button>
         </div>
       )}
     </Sheet>

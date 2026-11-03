@@ -282,17 +282,21 @@ body {
     font-size: 0.875rem;
   }
 
-  /* Bottom sheets (item detail, name item, confirms) */
+  /*
+   * Bottom sheets: keep the compact scale, but shrink as one column so Spot,
+   * title/meta (still px-1 inset), and buttons share the same outer edges —
+   * same alignment as the designed layout, just smaller.
+   */
   .sheet-panel {
     max-height: 82svh;
-    inset-inline: 0.625rem;
-    bottom: 0.625rem;
   }
   .sheet-scroll {
     max-height: calc(82svh - 28px);
   }
-  .sheet-spot {
-    max-width: min(100%, calc(30svh * 16 / 11));
+  /* One column: photo + copy + actions share edges (do not shrink Spot alone). */
+  .sheet-body > .sheet-stack {
+    width: 100%;
+    max-width: min(100%, 30svh * 16 / 11);
     margin-inline: auto;
   }
   .sheet-title {
@@ -300,8 +304,6 @@ body {
   }
   .sheet-meta {
     margin-top: 0.875rem;
-    padding: 0.75rem 0.875rem;
-    border-radius: 1rem;
   }
   .sheet-meta dt {
     font-size: 0.6875rem;
@@ -316,9 +318,6 @@ body {
   }
   .sheet-meta .sheet-meta-row dd {
     font-size: 0.8125rem;
-  }
-  .sheet-body {
-    padding-inline: 0.875rem;
   }
   .sheet-body-block {
     padding-top: 0.875rem;
