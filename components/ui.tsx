@@ -442,18 +442,18 @@ export function Missing() {
 export function Splash() {
   return (
     <div className="grid min-h-dvh place-items-center bg-paper">
-      <Logo className="fade" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/app-icon.svg" alt="" width={72} height={72} className="fade size-[72px]" />
     </div>
   );
 }
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2 text-[19px] font-bold tracking-[-0.04em] ${className}`}>
-      <span className="relative grid size-6 place-items-center rounded-full bg-ink">
-        <span className="size-2 rounded-full bg-miss" />
-      </span>
-      locus
+    <span className={`inline-flex items-center gap-2 text-[19px] font-bold tracking-[-0.02em] ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/mark.svg" alt="" width={35} height={24} className="h-6 w-[35px]" />
+      Locus
     </span>
   );
 }

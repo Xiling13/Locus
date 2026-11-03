@@ -283,21 +283,15 @@ body {
   }
 
   /*
-   * Bottom sheets: keep the compact scale, but shrink as one column so Spot,
-   * title/meta (still px-1 inset), and buttons share the same outer edges —
-   * same alignment as the designed layout, just smaller.
+   * Bottom sheets: tighten type / vertical rhythm only. Spot stays full width
+   * of the sheet gutter (same edges as title / meta / actions) — do not add a
+   * max-width column that invents side margins.
    */
   .sheet-panel {
     max-height: 82svh;
   }
   .sheet-scroll {
     max-height: calc(82svh - 28px);
-  }
-  /* One column: photo + copy + actions share edges (do not shrink Spot alone). */
-  .sheet-body > .sheet-stack {
-    width: 100%;
-    max-width: min(100%, 30svh * 16 / 11);
-    margin-inline: auto;
   }
   .sheet-title {
     font-size: 1.375rem;
@@ -334,13 +328,11 @@ body {
     font-size: clamp(1.6rem, 5svh, 2rem);
   }
 
-  /* Scanner / failure */
-  .scan-frame {
-    max-width: calc(48svh * 3 / 4) !important;
-  }
-  .scan-copy {
-    max-width: calc(48svh * 3 / 4) !important;
-  }
+  /*
+   * Scanner / failure: keep the designed 58×FRAME width (via svh in the
+   * component so the URL bar can’t inflate it). Only tighten titles here —
+   * never override max-width or the frame/copy stop sharing edges.
+   */
   .scan-title,
   .fail-title {
     font-size: clamp(1.6rem, 5svh, 2.1rem);

@@ -30,9 +30,10 @@ export function Scanner({ src, steps, title }: { src: string; steps: ScanStep[];
   return (
     <main className="scan-shell pt-safe pb-safe flex flex-col justify-center bg-paper px-5">
       <Shared name="shot">
+        {/* Same designed size as 58dvh, but svh so the URL bar can’t inflate it. */}
         <div
           className="scan-frame relative mx-auto w-full overflow-hidden rounded-[34px] bg-sunk"
-          style={{ aspectRatio: FRAME, maxWidth: `calc(58dvh * ${FRAME})` }}
+          style={{ aspectRatio: FRAME, maxWidth: `calc(58svh * ${FRAME})` }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt="" className="absolute inset-0 size-full object-cover saturate-[0.7]" />
@@ -50,7 +51,7 @@ export function Scanner({ src, steps, title }: { src: string; steps: ScanStep[];
         </div>
       </Shared>
 
-      <div className="scan-copy mx-auto mt-8 w-full" style={{ maxWidth: `calc(58dvh * ${FRAME})` }}>
+      <div className="scan-copy mx-auto mt-8 w-full" style={{ maxWidth: `calc(58svh * ${FRAME})` }}>
         <h1 className="scan-title display text-[34px] leading-[1.05]">{title}</h1>
         <div className="mt-5 flex items-baseline justify-between gap-3 text-[15px]">
           <span key={status} className="fade truncate font-medium">

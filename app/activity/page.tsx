@@ -91,10 +91,7 @@ function Row({ entry: { at, space, audit } }: { entry: Entry }) {
   const first = space.commits.find((c) => c.parentId === null) ?? space.commits.at(-1)!;
   const body = (
     <>
-      <Thumb
-        src={audit?.image ?? first.image}
-        className="shadow-[0_8px_18px_-6px_rgb(0_0_0/0.32)]"
-      />
+      <Thumb src={audit?.image ?? first.image} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 text-[16px] font-semibold">
           <span className="truncate">{space.name}</span>
@@ -111,12 +108,12 @@ function Row({ entry: { at, space, audit } }: { entry: Entry }) {
       <span className="shrink-0 self-center text-[13px] tabular-nums text-mute">{time(at)}</span>
     </>
   );
-  if (!audit) return <div className="flex items-center gap-3.5 p-3 pr-4">{body}</div>;
+  if (!audit) return <div className="flex items-center gap-3.5 p-2.5 pr-4">{body}</div>;
   return (
     <Link
       href={`/spaces/${space.id}/audits/${audit.id}`}
       transitionTypes={nav("forward")}
-      className="flex items-center gap-3.5 p-3 pr-4 transition-colors active:bg-paper"
+      className="flex items-center gap-3.5 p-2.5 pr-4 transition-colors active:bg-paper"
     >
       {body}
     </Link>
