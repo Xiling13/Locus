@@ -69,7 +69,13 @@ function Report({
   const [leavePrompt, setLeavePrompt] = useState(false);
   const deleteCheck = useLocus((s) => s.deleteCheck);
 
-  const items = [...audit.items].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]);
+  const items = [...audit.items].sort((a, b) => {
+    // Found items drop to the bottom; otherwise Missing → Moved → New.
+    const af = a.resolution === "found" ? 1 : 0;
+    const bf = b.resolution === "found" ? 1 : 0;
+    if (af !== bf) return af - bf;
+    return KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
+  });
   const status = primaryDiff(items);
   const headline = !status
     ? "All in place"
@@ -392,7 +398,9 @@ function Row({
       >
         <span className="relative shrink-0">
           <Thumb src={item.crop} className={`transition-opacity ${item.resolution === "found" ? "opacity-40" : ""}`} />
-          <span className={`absolute -right-0.5 -top-0.5 size-2.5 rounded-full ring-2 ring-card ${dot}`} />
+          {item.resolution !== "found" && (
+            <span className={`absolute -right-0.5 -top-0.5 size-2.5 rounded-full ring-2 ring-card ${dot}`} />
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[17px] font-semibold">{item.label}</span>

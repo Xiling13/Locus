@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: "Locus",
   description: "Take one photo of a space. Next time, Locus tells you what's missing, what's new and what moved.",
   appleWebApp: { capable: true, title: "Locus", statusBarStyle: "default" },
+  // Versioned PNG so Safari can pick up a new tab icon (it caches /favicon.ico aggressively).
+  icons: {
+    icon: [
+      { url: "/brand/favicon.png?v=20261104", type: "image/png", sizes: "256x256" },
+      { url: "/icon.png", type: "image/png", sizes: "48x48" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "256x256", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {

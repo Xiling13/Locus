@@ -10,6 +10,20 @@ const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: "12mb",
   },
+  // Safari pins the first /favicon.ico it ever saw (the old Next.js "N").
+  // Force revalidation so a deploy can replace it after the user reloads.
+  async headers() {
+    return [
+      {
+        source: "/favicon.ico",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
+        source: "/brand/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {
