@@ -145,6 +145,39 @@ export async function runAudit(base: Commit, image: LoadedImage, untracked: Ledg
     if (hit && !matchedDet.has(hit.id)) accept(o, hit);
   }
 
+  // Semantic greedy: a label that appears once on each side is the same physical
+  // object — ignore coordinate drift from a shifted frame. Duplicates (two Pens)
+  // fall through to distance-aware soft matching below.
+  {
+    const freeObj = base.objects.filter((o) => !matchedObj.has(o.id));
+    const freeDet = detections.filter((d) => !matchedDet.has(d.id));
+    const objByLabel = new Map<string, LedgerObject[]>();
+    const detByLabel = new Map<string, Detection[]>();
+    for (const o of freeObj) {
+      const k = normLabel(o.label);
+      if (!k) continue;
+      const list = objByLabel.get(k);
+      if (list) list.push(o);
+      else objByLabel.set(k, [o]);
+    }
+    for (const d of freeDet) {
+      const k = normLabel(d.label);
+      if (!k) continue;
+      const list = detByLabel.get(k);
+      if (list) list.push(d);
+      else detByLabel.set(k, [d]);
+    }
+    for (const [k, objs] of objByLabel) {
+      if (objs.length !== 1) continue;
+      const dets = detByLabel.get(k);
+      if (!dets || dets.length !== 1) continue;
+      const o = objs[0];
+      const d = dets[0];
+      if (matchedObj.has(o.id) || matchedDet.has(d.id)) continue;
+      accept(o, d);
+    }
+  }
+
   // Muse often mint a fresh signature when an item moves — pair leftovers by label before
   // calling them Missing + New.
   const freeObj = base.objects.filter((o) => !matchedObj.has(o.id));
