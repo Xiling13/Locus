@@ -47,7 +47,9 @@ export default function Home() {
           <>
             {plural(missing, "item")}
             <br />
-            <span className="text-mute">need attention</span>
+            <span className="text-mute">
+              {missing === 1 ? "needs" : "need"} attention
+            </span>
           </>
         ) : checked ? (
           <>
