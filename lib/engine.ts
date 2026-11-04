@@ -31,6 +31,19 @@ function containsPoint(b: BBox, x: number, y: number) {
 }
 
 /**
+ * A second outline of the same object (detector double box), not two neighbors.
+ * The smaller box has to sit mostly inside the larger one — side-by-side pens stay apart.
+ */
+function sameInstance(a: BBox, b: BBox) {
+  const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  const inter = ix * iy;
+  if (inter <= 0) return false;
+  const smaller = Math.min(a.w * a.h, b.w * b.h);
+  return smaller > 0 && inter / smaller >= 0.6;
+}
+
+/**
  * True occlusion: another object is sitting on the old spot — not a corner clip from
  * a neighbour. Require solid coverage and that the spot's centre still lies under it.
  */
@@ -237,8 +250,37 @@ export async function runAudit(base: Commit, image: LoadedImage, untracked: Ledg
     accept(o, d);
   }
 
-  for (const o of base.objects) {
-    if (matchedObj.has(o.id)) continue;
+  // One physical thing sometimes arrives as two overlapping boxes with the same name.
+  // Listing both makes one cable (or one pen) show up twice. Neighbors that only
+  // touch, and two of the same name in different spots, stay separate.
+  const sameName = (a: string, b: string) => {
+    const na = normLabel(a);
+    return na !== "" && na === normLabel(b);
+  };
+  const alreadyHeld = <T extends { id: string; label: string; bbox: BBox }>(
+    item: T,
+    kept: T[],
+    pool: T[],
+    taken: Set<string>,
+  ) =>
+    kept.some((k) => sameName(k.label, item.label) && sameInstance(k.bbox, item.bbox)) ||
+    pool.some(
+      (k) =>
+        k.id !== item.id &&
+        taken.has(k.id) &&
+        sameName(k.label, item.label) &&
+        sameInstance(k.bbox, item.bbox),
+    );
+
+  const removed = base.objects
+    .filter((o) => !matchedObj.has(o.id))
+    .sort((a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h);
+  const keptRemoved: LedgerObject[] = [];
+  for (const o of removed) {
+    if (alreadyHeld(o, keptRemoved, base.objects, matchedObj)) continue;
+    keptRemoved.push(o);
+  }
+  for (const o of keptRemoved) {
     const cover = occlusionOf(o.bbox, detections);
     items.push({
       id: `rm-${o.id}`,
@@ -253,8 +295,15 @@ export async function runAudit(base: Commit, image: LoadedImage, untracked: Ledg
     });
   }
 
-  for (const d of detections) {
-    if (matchedDet.has(d.id)) continue;
+  const added = detections
+    .filter((d) => !matchedDet.has(d.id))
+    .sort((a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h);
+  const keptAdded: Detection[] = [];
+  for (const d of added) {
+    if (alreadyHeld(d, keptAdded, detections, matchedDet)) continue;
+    keptAdded.push(d);
+  }
+  for (const d of keptAdded) {
     items.push({
       id: `ad-${d.id}`,
       kind: "added",
