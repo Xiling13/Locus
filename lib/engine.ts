@@ -5,7 +5,12 @@ import { vision } from "./vision";
 
 // Framing / angle will drift between checks — treat modest centroid shifts as moves, not new items.
 const MOVE_THRESHOLD = 0.08;
-const OCCLUSION_THRESHOLD = 0.25;
+/**
+ * Fraction of an old spot that must sit under a current detection before we call it
+ * "Maybe hidden". Keep this strict: grazing overlap from a nearby keyboard / rock
+ * should read as Missing (empty desk), not occluded.
+ */
+const OCCLUSION_THRESHOLD = 0.45;
 /** Minimum label likeness before we reuse a ledger identity without a matching signature. */
 const SOFT_MATCH_MIN = 2;
 
@@ -19,6 +24,26 @@ function coverage(a: BBox, b: BBox) {
   const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
   const iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
   return (ix * iy) / (a.w * a.h);
+}
+
+function containsPoint(b: BBox, x: number, y: number) {
+  return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+}
+
+/**
+ * True occlusion: another object is sitting on the old spot — not a corner clip from
+ * a neighbour. Require solid coverage and that the spot's centre still lies under it.
+ */
+function occlusionOf(spot: BBox, detections: Detection[]) {
+  const [cx, cy] = center(spot);
+  let best: { d: Detection; c: number } | undefined;
+  for (const d of detections) {
+    const c = coverage(spot, d.bbox);
+    if (c < OCCLUSION_THRESHOLD) continue;
+    if (!containsPoint(d.bbox, cx, cy)) continue;
+    if (!best || c > best.c) best = { d, c };
+  }
+  return best;
 }
 
 function normLabel(s: string) {
@@ -145,9 +170,8 @@ export async function runAudit(base: Commit, image: LoadedImage, untracked: Ledg
     if (hit && !matchedDet.has(hit.id)) accept(o, hit);
   }
 
-  // Semantic greedy: a label that appears once on each side is the same physical
-  // object — ignore coordinate drift from a shifted frame. Duplicates (two Pens)
-  // fall through to distance-aware soft matching below.
+  // Semantic greedy by exact label: unique 1:1 first, then N:N nearest-centroid so
+  // two Pens that slid a little become Moved instead of Missing + New.
   {
     const freeObj = base.objects.filter((o) => !matchedObj.has(o.id));
     const freeDet = detections.filter((d) => !matchedDet.has(d.id));
@@ -168,18 +192,33 @@ export async function runAudit(base: Commit, image: LoadedImage, untracked: Ledg
       else detByLabel.set(k, [d]);
     }
     for (const [k, objs] of objByLabel) {
-      if (objs.length !== 1) continue;
       const dets = detByLabel.get(k);
-      if (!dets || dets.length !== 1) continue;
-      const o = objs[0];
-      const d = dets[0];
-      if (matchedObj.has(o.id) || matchedDet.has(d.id)) continue;
-      accept(o, d);
+      if (!dets?.length) continue;
+      if (objs.length === 1 && dets.length === 1) {
+        const o = objs[0];
+        const d = dets[0];
+        if (matchedObj.has(o.id) || matchedDet.has(d.id)) continue;
+        accept(o, d);
+        continue;
+      }
+      const near: { o: LedgerObject; d: Detection; dist: number }[] = [];
+      for (const o of objs) {
+        for (const d of dets) {
+          const [ax, ay] = center(o.bbox);
+          const [bx, by] = center(d.bbox);
+          near.push({ o, d, dist: Math.hypot(ax - bx, ay - by) });
+        }
+      }
+      near.sort((a, b) => a.dist - b.dist);
+      for (const { o, d } of near) {
+        if (matchedObj.has(o.id) || matchedDet.has(d.id)) continue;
+        accept(o, d);
+      }
     }
   }
 
-  // Muse often mint a fresh signature when an item moves — pair leftovers by label before
-  // calling them Missing + New.
+  // Muse often mint a fresh signature when an item moves — pair leftovers by soft
+  // label likeness before calling them Missing + New.
   const freeObj = base.objects.filter((o) => !matchedObj.has(o.id));
   const freeDet = detections.filter((d) => !matchedDet.has(d.id));
   const pairs: { o: LedgerObject; d: Detection; score: number; dist: number }[] = [];
@@ -200,10 +239,7 @@ export async function runAudit(base: Commit, image: LoadedImage, untracked: Ledg
 
   for (const o of base.objects) {
     if (matchedObj.has(o.id)) continue;
-    const cover = detections
-      .map((d) => ({ d, c: coverage(o.bbox, d.bbox) }))
-      .sort((a, b) => b.c - a.c)[0];
-    const occluded = cover && cover.c >= OCCLUSION_THRESHOLD;
+    const cover = occlusionOf(o.bbox, detections);
     items.push({
       id: `rm-${o.id}`,
       kind: "removed",
@@ -212,8 +248,8 @@ export async function runAudit(base: Commit, image: LoadedImage, untracked: Ledg
       crop: o.crop,
       objectId: o.id,
       from: o.bbox,
-      confidence: occluded ? "occluded" : "confirmed",
-      occludedBy: occluded ? cover.d.label : undefined,
+      confidence: cover ? "occluded" : "confirmed",
+      occludedBy: cover ? cover.d.label : undefined,
     });
   }
 
